@@ -1,0 +1,663 @@
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Optional
+import secrets
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, select
+from pydantic import EmailStr, ValidationError, validate_email
+from sqlalchemy import or_
+from app.core.config import settings
+from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
+from app.models.models import User, UserRole, VerificationCodeDB, RevokedToken, OAuthProvider, Feature, PropertyCategory
+from app.core.email import send_email
+from app.core.constants import ROLE_ASSIGNMENT_ERROR, ADMIN_CREATION_RESTRICTION, VERIFICATION_EMAIL_SUBJECT, VERIFICATION_EMAIL_BODY
+from app.models.user_schemas import UserUpdate
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+# Email configuration constants
+SMTP_HOST = settings.SMTP_HOST
+SMTP_PORT = settings.SMTP_PORT
+SMTP_USER = settings.SMTP_USER
+SMTP_PASSWORD = settings.SMTP_PASSWORD
+EMAILS_FROM_EMAIL = settings.EMAILS_FROM_EMAIL
+
+# Security constants
+TOKEN_TYPE_BEARER = "bearer"
+
+
+class VerificationCode:
+    """Class to manage email verification codes."""
+
+    def __init__(self):
+        self.code: str = None
+        self.email: str = None
+        self.created_at: datetime = None
+        self.expires_at: datetime = None
+
+    def generate(self, email: str) -> str:
+        """
+        Generate a new verification code with expiration time.
+        """
+        self.code = secrets.token_hex(3).upper()  # 6-character hex code
+        self.email = email
+        self.created_at = datetime.now(timezone.utc)
+        self.expires_at = self.created_at + timedelta(minutes=10)
+        return self.code
+
+    def is_expired(self) -> bool:
+        """
+        Check if the verification code has expired.
+        """
+        return datetime.now(timezone.utc) > self.expires_at
+
+
+def _ensure_role_permissions(current_user: Optional[User], role: UserRole):
+    """
+    Ensure the current user has permission to assign the given role.
+    """
+    if current_user is None or current_user.role != UserRole.admin:
+        if role not in [UserRole.customer, UserRole.property_owner]:
+            raise HTTPException(
+                status_code=403,
+                detail=ROLE_ASSIGNMENT_ERROR
+            )
+        if role == UserRole.admin:
+            raise HTTPException(
+                status_code=403,
+                detail=ADMIN_CREATION_RESTRICTION
+            )
+
+
+def _validate_unique_user(session: Session, email: str, phone: Optional[str], oauth_uid: Optional[str] = None):
+    """
+    Check if the email, phone number, or oauth_uid already exists in the database.
+    """
+    try:
+        validate_email(email)
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid email format")
+
+    query_conditions = [User.email == email]
+
+    if oauth_uid is not None:
+        query_conditions.append(User.oauth_uid == oauth_uid)
+
+    if phone is not None:
+        query_conditions.append(User.phone == phone)
+
+    existing_user = session.exec(
+        select(User).where(or_(*query_conditions))).first()
+
+    if existing_user:
+        if existing_user.email == email:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        if phone is not None and existing_user.phone == phone:
+            raise HTTPException(status_code=400, detail="Phone already in use")
+        if oauth_uid is not None and existing_user.oauth_uid == oauth_uid:
+            raise HTTPException(
+                status_code=400, detail="OAuth ID already in use")
+
+
+def _create_user_in_db(
+    session: Session,
+    name: str,
+    email: str,
+    phone: Optional[str],
+    password: Optional[str],
+    role: UserRole,
+    id_card_url: Optional[str] = None,
+    profile_picture_url: Optional[str] = None,
+    oauth_provider: OAuthProvider = OAuthProvider.none,
+    oauth_uid: Optional[str] = None
+) -> User:
+    """
+    Create and add the user to the database but does not commit yet.
+    """
+    if role == UserRole.property_owner and not id_card_url:
+        raise HTTPException(
+            status_code=400,
+            detail="ID card URL is required for property owners"
+        )
+    if profile_picture_url and len(profile_picture_url) > 255:
+        raise HTTPException(
+            status_code=400,
+            detail="Profile picture URL too long"
+        )
+    db_user = User(
+        name=name,
+        email=email,
+        phone=phone,
+        hashed_password=get_password_hash(password) if password else None,
+        oauth_provider=oauth_provider,
+        oauth_uid=oauth_uid,
+        role=role,
+        id_card_url=id_card_url if role == UserRole.property_owner else None,
+        profile_picture_url=profile_picture_url,
+        # OAuth users are auto-verified
+        is_email_verified=oauth_provider != OAuthProvider.none,
+        is_approved=role == UserRole.customer,
+        is_active=True
+    )
+    session.add(db_user)
+    return db_user
+
+
+def _generate_and_send_verification_code(session: Session, email: str):
+    """
+    Generate and store verification code, then send it via email.
+    """
+    reset_code = VerificationCode()
+    code = reset_code.generate(email=email)
+    verification = VerificationCodeDB(
+        email=email,
+        code=code,
+        expires_at=reset_code.expires_at
+    )
+    session.add(verification)
+    session.commit()
+
+    try:
+        send_email(
+            recipient=email,
+            subject=VERIFICATION_EMAIL_SUBJECT,
+            body=VERIFICATION_EMAIL_BODY(code)
+        )
+    except HTTPException as e:
+        session.rollback()
+        session.delete(verification)
+        session.commit()
+        raise e
+
+
+def create_db_user(
+    *,
+    session: Session,
+    name: str,
+    email: str,
+    phone: Optional[str] = None,
+    password: Optional[str] = None,
+    role: UserRole,
+    id_card_url: Optional[str] = None,
+    profile_picture_url: Optional[str] = None,
+    oauth_provider: OAuthProvider = OAuthProvider.none,
+    oauth_uid: Optional[str] = None,
+    current_user: Optional[User] = None
+) -> User:
+    """
+    Create a new user in the database and send verification email if applicable.
+    """
+    _ensure_role_permissions(current_user, role)
+    _validate_unique_user(session, email, phone, oauth_uid)
+
+    try:
+        db_user = _create_user_in_db(
+            session=session,
+            name=name,
+            email=email,
+            phone=phone,
+            password=password,
+            role=role,
+            id_card_url=id_card_url,
+            profile_picture_url=profile_picture_url,
+            oauth_provider=oauth_provider,
+            oauth_uid=oauth_uid
+        )
+
+        if password and oauth_provider == OAuthProvider.none:
+            _generate_and_send_verification_code(session, email)
+
+        session.commit()
+        return db_user
+
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Email, phone, or OAuth ID already in use"
+        )
+
+
+def get_user_by_id(*, session: Session, user_id: int) -> Optional[User]:
+    """
+    Retrieve a user by their ID.
+    """
+    if user_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+
+    try:
+        statement = select(User).where(User.user_id == user_id)
+        return session.exec(statement).first()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error occurred")
+
+
+def get_user_by_email(*, session: Session, email: str) -> Optional[User]:
+    """
+    Retrieve a user by their email address.
+    """
+    try:
+        validate_email(email)
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid email format")
+
+    try:
+        statement = select(User).where(User.email == email)
+        return session.exec(statement).first()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error occurred")
+
+
+def get_user_by_oauth_uid(*, session: Session, oauth_uid: str) -> Optional[User]:
+    """
+    Retrieve a user by their OAuth UID.
+    """
+    try:
+        statement = select(User).where(User.oauth_uid == oauth_uid)
+        return session.exec(statement).first()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error occurred")
+
+
+def _validate_user_for_auth(user: User, password: Optional[str] = None) -> None:
+    """
+    Validate user credentials and status for authentication.
+    """
+    if user.oauth_provider != OAuthProvider.none and password:
+        raise HTTPException(status_code=400, detail="Use OAuth login")
+    if user.oauth_provider == OAuthProvider.none and not verify_password(password, user.hashed_password):
+        raise HTTPException(
+            status_code=401, detail="Invalid email or password")
+    if not user.is_email_verified and user.oauth_provider == OAuthProvider.none:
+        raise HTTPException(status_code=403, detail="Please verify your email")
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=403, detail="Account awaiting approval")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
+
+
+def authenticate_user(
+    *,
+    session: Session,
+    email: str,
+    password: str
+) -> Dict[str, str]:
+    """
+    Authenticate a user and return access and refresh tokens.
+    """
+    try:
+        validate_email(email)
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid email format")
+
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required")
+
+    user = get_user_by_email(session=session, email=email)
+    if not user:
+        raise HTTPException(
+            status_code=401, detail="Invalid email or password")
+
+    _validate_user_for_auth(user, password)
+
+    access_token = create_access_token(
+        user_id=user.user_id, email=user.email, role=user.role)
+    refresh_token = create_refresh_token(user_id=user.user_id)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": TOKEN_TYPE_BEARER
+    }
+
+
+def authenticate_google_user(
+    *,
+    session: Session,
+    email: str,
+    google_id: str,
+    name: str,
+    profile_picture_url: Optional[str] = None
+) -> Dict[str, str]:
+    """
+    Authenticate or create a Google OAuth user and return tokens.
+    """
+    try:
+        validate_email(email)
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid email format")
+
+    user = get_user_by_oauth_uid(session=session, oauth_uid=google_id)
+    if not user:
+        user = get_user_by_email(session=session, email=email)
+        if user and user.oauth_provider != OAuthProvider.none:
+            raise HTTPException(
+                status_code=400,
+                detail="Email associated with another OAuth provider"
+            )
+        if user:
+            # Update existing user to link Google OAuth
+            user.oauth_provider = OAuthProvider.google
+            user.oauth_uid = google_id
+            user.is_email_verified = True
+            session.add(user)
+            session.commit()
+        else:
+            # Create new user
+            user = create_db_user(
+                session=session,
+                name=name,
+                email=email,
+                phone=None,
+                password=None,
+                role=UserRole.customer,
+                id_card_url=None,
+                profile_picture_url=profile_picture_url,
+                oauth_provider=OAuthProvider.google,
+                oauth_uid=google_id
+            )
+
+    _validate_user_for_auth(user)
+
+    access_token = create_access_token(
+        user_id=user.user_id, email=user.email, role=user.role)
+    refresh_token = create_refresh_token(user_id=user.user_id)
+    response = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": TOKEN_TYPE_BEARER
+    }
+    if not user.is_approved:
+        response["message"] = "Account is awaiting approval."
+    return response
+
+
+def verify_email_code(*, session: Session, email: str, code: str) -> Dict[str, str]:
+    """
+    Verify an email verification code and return tokens.
+    """
+    logger.info(f"Starting verification for email: {email}, code: {code}")
+
+    try:
+        validate_email(email)
+    except ValidationError:
+        logger.warning(f"Invalid email format: {email}")
+        raise HTTPException(status_code=400, detail="Invalid email format")
+
+    if not code or len(code) != 6 or not code.isalnum():
+        logger.warning(f"Invalid code format: {code}")
+        raise HTTPException(
+            status_code=400, detail="Invalid verification code format")
+
+    try:
+        verification = session.exec(
+            select(VerificationCodeDB).where(VerificationCodeDB.email == email)
+        ).first()
+        logger.info(f"Verification record: {verification}")
+
+        if not verification or datetime.now(timezone.utc) > verification.expires_at.replace(tzinfo=timezone.utc) or verification.code != code:
+            if verification and datetime.now(timezone.utc) > verification.expires_at:
+                logger.info(f"Verification code expired for: {email}")
+                session.delete(verification)
+                session.commit()
+            logger.warning(f"Verification failed for {email}")
+            raise HTTPException(
+                status_code=401, detail="Invalid or expired verification code")
+
+        user = get_user_by_email(session=session, email=email)
+        logger.info(f"User fetched: {user}")
+
+        if not user:
+            logger.warning(f"No user found for email: {email}")
+            raise HTTPException(
+                status_code=401, detail="Invalid or expired verification code")
+
+        if not user.is_active:
+            logger.warning(f"User is not active: {email}")
+            raise HTTPException(
+                status_code=403, detail="Account is deactivated")
+
+        user.is_email_verified = True
+        session.add(user)
+        session.delete(verification)
+        session.commit()
+
+        logger.info(f"User verified and tokens being generated for: {email}")
+
+        access_token = create_access_token(
+            user_id=user.user_id, email=user.email, role=user.role)
+        refresh_token = create_refresh_token(user_id=user.user_id)
+
+        response = {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": TOKEN_TYPE_BEARER
+        }
+
+        if not user.is_approved:
+            response["message"] = "Email verified, but account is awaiting approval."
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error during email verification")
+        raise HTTPException(status_code=500, detail="Database error occurred")
+
+
+def request_password_reset(*, session: Session, email: str) -> None:
+    """
+    Request a password reset by sending a reset code to the user's email.
+    """
+    try:
+        validate_email(email)
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid email format")
+
+    try:
+        user = get_user_by_email(session=session, email=email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user.oauth_provider != OAuthProvider.none:
+            raise HTTPException(
+                status_code=400,
+                detail="Password reset not available for OAuth users"
+            )
+
+        reset_code = VerificationCode()
+        code = reset_code.generate(email=email)
+        verification = VerificationCodeDB(
+            email=email,
+            code=code,
+            expires_at=reset_code.expires_at
+        )
+        session.add(verification)
+        session.commit()
+
+        try:
+            send_email(
+                recipient=email,
+                subject="Password Reset Code",
+                body=f"Your password reset code is: {code}\nValid for 10 minutes."
+            )
+        except HTTPException as e:
+            session.rollback()
+            session.delete(verification)
+            session.commit()
+            raise e
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="A reset request is already pending for this email"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error occurred")
+
+
+def reset_password(
+    *, session: Session, email: str, code: str, new_password: str
+) -> bool:
+    """
+    Reset the user's password using a verification code.
+    """
+    try:
+        validate_email(email)
+    except ValidationError:
+        raise HTTPException(status_code=400, detail="Invalid email format")
+
+    if not code or len(code) != 6 or not code.isalnum():
+        raise HTTPException(
+            status_code=400, detail="Invalid reset code format")
+
+    if not new_password:
+        raise HTTPException(status_code=400, detail="New password is required")
+
+    try:
+        user = get_user_by_email(session=session, email=email)
+        if not user:
+            raise HTTPException(
+                status_code=401, detail="Invalid or expired reset code")
+        if user.oauth_provider != OAuthProvider.none:
+            raise HTTPException(
+                status_code=400,
+                detail="Password reset not available for OAuth users"
+            )
+
+        verification = session.exec(
+            select(VerificationCodeDB).where(VerificationCodeDB.email == email)
+        ).first()
+        if not verification or datetime.now(timezone.utc) > verification.expires_at or verification.code != code:
+            if verification and datetime.now(timezone.utc) > verification.expires_at:
+                session.delete(verification)
+                session.commit()
+            raise HTTPException(
+                status_code=401, detail="Invalid or expired reset code")
+
+        user.hashed_password = get_password_hash(new_password)
+        session.add(user)
+        session.delete(verification)
+        session.commit()
+        return True
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail="Database error occurred")
+
+
+def revoke_token(*, session: Session, token: str, expires_at: datetime) -> None:
+    """
+    Revoke a JWT token by adding it to the RevokedToken table.
+    """
+    if not token:
+        raise HTTPException(status_code=400, detail="Token is required")
+
+    try:
+        revoked_token = RevokedToken(
+            token=token,
+            expires_at=expires_at
+        )
+        session.add(revoked_token)
+        session.commit()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error occurred")
+
+
+def is_token_revoked(*, session: Session, token: str) -> bool:
+    """
+    Check if a JWT token is revoked.
+    """
+    if not token:
+        raise HTTPException(status_code=400, detail="Token is required")
+
+    try:
+        statement = select(RevokedToken).where(RevokedToken.token == token)
+        revoked_token = session.exec(statement).first()
+        if revoked_token and revoked_token.expires_at > datetime.now(timezone.utc):
+            return True
+        return False
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Database error occurred")
+
+
+def update_user_in_db(
+    session: Session,
+    db_user: User,
+    user_data: UserUpdate,
+    current_user: User
+) -> User:
+    try:
+        if user_data.email and user_data.email != db_user.email:
+            try:
+                validate_email(user_data.email)
+            except ValidationError:
+                raise HTTPException(
+                    status_code=400, detail="Invalid email format")
+            existing_email = get_user_by_email(
+                session=session, email=user_data.email)
+            if existing_email:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Email already in use"
+                )
+            db_user.email = user_data.email
+
+        if user_data.phone and user_data.phone != db_user.phone:
+            if len(user_data.phone) > 20:
+                raise HTTPException(
+                    status_code=400, detail="Phone number too long")
+            existing_phone = session.exec(
+                select(User).where(User.phone == user_data.phone)
+            ).first()
+            if existing_phone:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Phone number already in use"
+                )
+            db_user.phone = user_data.phone
+
+        if user_data.name:
+            if len(user_data.name) > 100:
+                raise HTTPException(status_code=400, detail="Name too long")
+            db_user.name = user_data.name
+
+        if user_data.profile_picture_url is not None:
+            if len(user_data.profile_picture_url) > 255:
+                raise HTTPException(
+                    status_code=400, detail="Profile picture URL too long")
+            db_user.profile_picture_url = user_data.profile_picture_url
+
+        admin_only_fields = ['is_active', 'is_approved', 'role', 'id_card_url']
+        for field in admin_only_fields:
+            if getattr(user_data, field, None) is not None and current_user.role != UserRole.admin:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"You are not authorized to update '{field}'"
+                )
+
+        if current_user.role == UserRole.admin:
+            if user_data.is_active is not None:
+                db_user.is_active = user_data.is_active
+            if user_data.is_approved is not None:
+                db_user.is_approved = user_data.is_approved
+            if user_data.role:
+                db_user.role = user_data.role
+            if user_data.id_card_url and db_user.role == UserRole.property_owner:
+                if len(user_data.id_card_url) > 255:
+                    raise HTTPException(
+                        status_code=400, detail="ID card URL too long")
+                db_user.id_card_url = user_data.id_card_url
+
+        session.add(db_user)
+        session.commit()
+        return db_user
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Database error occurred")
+
