@@ -53,7 +53,8 @@ def get_or_create(session: Session, model, **kwargs):
 
 def init_db(session: Session) -> None:
     # Load Property Categories from CSV
-    with open('app/data/property_categories.csv', mode='r', newline='', encoding='utf-8') as file:
+    pass
+    '''with open('app/data/property_categories.csv', mode='r', newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
 
         category_names = set()
@@ -382,4 +383,4 @@ def init_db(session: Session) -> None:
         logger.info("Data and admin user successfully inserted into the database!")
     except IntegrityError as e:
         session.rollback()
-        logger.error("Error inserting data:", e)
+        logger.error("Error inserting data:", e)'''
