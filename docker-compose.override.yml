@@ -1,3 +1,5 @@
+version: '3'
+
 services:
 
   # Local services are available on their ports, but also available on:
@@ -85,6 +87,7 @@ services:
       SMTP_PORT: "1025"
       SMTP_TLS: "false"
       EMAILS_FROM_EMAIL: "noreply@example.com"
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
 
   frontend:
       restart: "no"
@@ -96,7 +99,7 @@ services:
       command: ["npm", "run", "dev"]
       environment:
         - NODE_ENV=development
-        - NEXT_PUBLIC_API_URL=http://api.${DOMAIN?Variable not set}
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
       networks:
         - traefik-public
         - default

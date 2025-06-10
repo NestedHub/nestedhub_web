@@ -1,51 +1,105 @@
 "use client"
 
-import { useParams } from "next/navigation"
-import AdminSidebar from "@/component/admin/sidebar"
-import BackButton from "@/component/ui/backbutton"
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import AdminSidebar from '@/component/admin/sidebar';
+import BackButton from '@/component/ui/backbutton';
 
-// Mock data for a property request
-const mockPropertyDetail = {
-  id: "01",
-  title: "Luxury Apartment in Downtown",
-  description: "Description",
-  type: "Apartment",
-  bedrooms: 3,
-  bathrooms: 2,
-  availableFrom: "02 Jan 2025",
-  location: "Location",
+interface PropertyDetail {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  bedrooms: number;
+  bathrooms: number;
+  availableFrom: string;
+  location: string;
   facilities: {
-    airConditioning: "yes",
-    guard: "yes",
-    parking: "no",
-    internet: "yes",
-  },
+    airConditioning: string;
+    guard: string;
+    parking: string;
+    internet: string;
+  };
   cost: {
-    rentPrice: "$500/month",
-    electric: "$30",
-    water: "$20",
-    other: "$50",
-  },
+    rentPrice: string;
+    electric: string;
+    water: string;
+    other: string;
+  };
   forRent: {
-    maleStudent: "no",
-    femaleStudent: "yes",
-    manJob: "no",
-    womanJob: "no",
-  },
+    maleStudent: string;
+    femaleStudent: string;
+    manJob: string;
+    womanJob: string;
+  };
   owner: {
-    name: "Name Here",
-    phone: "0987777",
-    email: "email@example.com",
-    telegram: "@telegram-link",
-  },
+    name: string;
+    phone: string;
+    email: string;
+    telegram: string;
+  };
 }
 
 export default function PropertyRequestDetailPage() {
-  const params = useParams()
-  const propertyId = params.id as string
+  const params = useParams();
+  const propertyId = params.id as string;
+  const [property, setProperty] = useState<PropertyDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // In a real app, you would fetch the property data based on the ID
-  const property = mockPropertyDetail
+  useEffect(() => {
+    const fetchPropertyDetail = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/property-requests/${propertyId}`,
+          {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch property details');
+        }
+
+        const data = await response.json();
+        setProperty(data);
+      } catch (err) {
+        console.error('Error fetching property details:', err);
+        setError('Failed to load property details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPropertyDetail();
+  }, [propertyId]);
+
+  if (error) {
+    return (
+      <AdminSidebar>
+        <div className="text-red-600">{error}</div>
+      </AdminSidebar>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <AdminSidebar>
+        <div>Loading...</div>
+      </AdminSidebar>
+    );
+  }
+
+  if (!property) {
+    return (
+      <AdminSidebar>
+        <div>Property not found</div>
+      </AdminSidebar>
+    );
+  }
 
   return (
     <AdminSidebar>
@@ -218,5 +272,5 @@ export default function PropertyRequestDetailPage() {
         </div>
       </div>
     </AdminSidebar>
-  )
+  );
 }
