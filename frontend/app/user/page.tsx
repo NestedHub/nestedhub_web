@@ -6,81 +6,56 @@ import { Search, SlidersHorizontal, ChevronDown } from "lucide-react"
 import Header from "@/component/user/header"
 import Footer from "@/component/user/footer"
 import PropertySection from "@/component/property/propertySection"
-import { getNewListings, getPropertiesByType } from "@/lib/mockData/properties"
-import type { Property } from "@/lib/mockData/properties"
-
-// Define the property type expected by PropertySection
-interface PropertyWithImage {
-  id: string
-  title: string
-  type: string
-  price: string
-  location: string
-  bedrooms: number
-  bathrooms: number
-  image: string // Required image field
-}
+import { fetchNewListings, fetchPropertiesByType } from "@/lib/api/properties"
+import type { Property } from "@/lib/api/properties"
 
 export default function UserHomePage() {
-  const [newListings, setNewListings] = useState<PropertyWithImage[]>([])
-  const [apartments, setApartments] = useState<PropertyWithImage[]>([])
-  const [condos, setCondos] = useState<PropertyWithImage[]>([])
-  const [dorms, setDorms] = useState<PropertyWithImage[]>([])
+  const [newListings, setNewListings] = useState<Property[]>([])
+  const [apartments, setApartments] = useState<Property[]>([])
+  const [condos, setCondos] = useState<Property[]>([])
+  const [dorms, setDorms] = useState<Property[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(true)
-
-  // Helper function to convert Property to PropertyWithImage
-  const mapPropertyToPropertyWithImage = (property: Property): PropertyWithImage => {
-    // Find the primary image or use the first image or a default
-    let imageUrl = "/property.png" // Default fallback image
-
-    if (property.images && property.images.length > 0) {
-      // Try to find primary image first
-      const primaryImage = property.images.find((img) => img.isPrimary)
-      if (primaryImage && primaryImage.url) {
-        imageUrl = primaryImage.url
-      } else if (property.images[0].url) {
-        // Otherwise use the first image
-        imageUrl = property.images[0].url
-      }
-    }
-
-    return {
-      id: property.id,
-      title: property.title,
-      type: property.type,
-      price: property.price,
-      location: property.location,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      image: imageUrl,
-    }
-  }
+  const [error, setError] = useState("")
 
   useEffect(() => {
-    const fetchProperties = async () => {
+    const fetchData = async () => {
       setIsLoading(true)
       try {
-        // Fetch properties for each section
-        const newListingsData = await getNewListings(6)
-        const apartmentsData = await getPropertiesByType("Apartment", 6)
-        const condosData = await getPropertiesByType("Condo", 6)
-        const dormsData = await getPropertiesByType("Dorm", 6)
+        // Fetch all data in parallel for better performance
+        const [newListingsData, apartmentsData, condosData, dormsData] = await Promise.all([
+          fetchNewListings(6),
+          fetchPropertiesByType("Apartment", 6),
+          fetchPropertiesByType("Condo", 6),
+          fetchPropertiesByType("Dorm", 6),
+        ])
 
-        // Map the properties to include a required image field
-        setNewListings(newListingsData.map(mapPropertyToPropertyWithImage))
-        setApartments(apartmentsData.map(mapPropertyToPropertyWithImage))
-        setCondos(condosData.map(mapPropertyToPropertyWithImage))
-        setDorms(dormsData.map(mapPropertyToPropertyWithImage))
+        setNewListings(newListingsData.items)
+        setApartments(apartmentsData.items)
+        setCondos(condosData.items)
+        setDorms(dormsData.items)
       } catch (error) {
         console.error("Error fetching properties:", error)
+        setError("Failed to load properties")
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchProperties()
+    fetchData()
   }, [])
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header userType="user" />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-red-600">{error}</div>
+        </div>
+        <Footer userType="user" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -150,6 +125,7 @@ export default function UserHomePage() {
               width={600}
               height={400}
               className="rounded-md"
+              priority // Add priority to load hero image first
             />
           </div>
         </div>

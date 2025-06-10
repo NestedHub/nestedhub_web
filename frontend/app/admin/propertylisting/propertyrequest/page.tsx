@@ -1,88 +1,130 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Eye } from "lucide-react"
 import AdminSidebar from "@/component/admin/sidebar"
 import Pagination from "@/component/admin/pagination"
 
-// Mock data for property requests
-const mockPropertyRequests = [
-  {
-    id: "01",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "02",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "03",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "04",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "05",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "06",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "07",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-]
+interface PropertyRequest {
+  id: string
+  title: string
+  type: string
+  status: string
+  dateList: string
+}
 
 export default function PropertyRequestPage() {
   const router = useRouter()
+  const [requests, setRequests] = useState<PropertyRequest[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [totalPages, setTotalPages] = useState(1)
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/property-requests?page=${currentPage}`,
+          {
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch property requests")
+        }
+
+        const data = await response.json()
+        setRequests(data.items)
+        setTotalPages(Math.ceil(data.total / data.per_page))
+      } catch (err) {
+        console.error("Error fetching property requests:", err)
+        setError("Failed to load property requests")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchRequests()
+  }, [currentPage])
 
   // Filter property requests based on search term
-  const filteredRequests = mockPropertyRequests.filter(
+  const filteredRequests = requests.filter(
     (request) =>
       request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.type.toLowerCase().includes(searchTerm.toLowerCase()),
+      request.type.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleAccept = (id: string) => {
-    console.log(`Accepted property request with ID: ${id}`)
-    // In a real app, you would call an API to accept the request
+  const handleAccept = async (id: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/property-requests/${id}/approve`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error("Failed to approve property request")
+      }
+
+      // Remove the approved request from the list
+      setRequests((prev) => prev.filter((request) => request.id !== id))
+    } catch (err) {
+      console.error("Error approving property request:", err)
+      alert("Failed to approve property request")
+    }
   }
 
-  const handleReject = (id: string) => {
-    console.log(`Rejected property request with ID: ${id}`)
-    // In a real app, you would call an API to reject the request
+  const handleReject = async (id: string) => {
+    if (!window.confirm("Are you sure you want to reject this property request?")) {
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/property-requests/${id}/reject`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error("Failed to reject property request")
+      }
+
+      // Remove the rejected request from the list
+      setRequests((prev) => prev.filter((request) => request.id !== id))
+    } catch (err) {
+      console.error("Error rejecting property request:", err)
+      alert("Failed to reject property request")
+    }
   }
 
   const handleView = (id: string) => {
-    router.push(`/admin/property-listing/property-request/${id}`)
+    router.push(`/admin/propertylisting/propertyrequest/${id}`)
+  }
+
+  if (error) {
+    return (
+      <AdminSidebar>
+        <div className="text-red-600">{error}</div>
+      </AdminSidebar>
+    )
   }
 
   return (
@@ -146,47 +188,61 @@ export default function PropertyRequestPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredRequests.map((request) => (
-                <tr key={request.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.type}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                      {request.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.dateList}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleAccept(request.id)}
-                        className="bg-green-500 text-white px-3 py-1 rounded-md hover:bg-green-600"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => handleReject(request.id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600"
-                      >
-                        Reject
-                      </button>
-                      <button
-                        onClick={() => handleView(request.id)}
-                        className="text-gray-600 hover:text-gray-900"
-                        title="View Details"
-                      >
-                        <Eye size={18} />
-                      </button>
-                    </div>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center">
+                    Loading...
                   </td>
                 </tr>
-              ))}
+              ) : filteredRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center">
+                    No property requests found
+                  </td>
+                </tr>
+              ) : (
+                filteredRequests.map((request) => (
+                  <tr key={request.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.title}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        {request.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.dateList}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleAccept(request.id)}
+                          className="bg-green-500 text-white px-3 py-1 rounded-md hover:bg-green-600"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleReject(request.id)}
+                          className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => handleView(request.id)}
+                          className="text-gray-600 hover:text-gray-900"
+                          title="View Details"
+                        >
+                          <Eye size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        <Pagination currentPage={currentPage} totalPages={5} onPageChange={setCurrentPage} />
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
     </AdminSidebar>
   )

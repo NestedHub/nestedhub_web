@@ -312,7 +312,13 @@ def authenticate_user(
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": TOKEN_TYPE_BEARER
+        "token_type": TOKEN_TYPE_BEARER,
+        "user": {
+            "id": str(user.user_id),
+            "email": user.email,
+            "role": user.role.value,
+            "name": user.name
+        }
     }
 
 
