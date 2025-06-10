@@ -4,7 +4,7 @@ from app.models.enums import UserRole, PropertyStatusEnum
 from app.models.property_schemas import (
     PropertyCreate, PropertyRead, PropertyUpdate,
     PropertyPricingRead, PropertyMediaRead, PropertyLocationRead, FeatureRead,
-    PaginatedPropertyRead, PropertyComparisonItem, PropertyOwnerListing, PropertyStatsResponse
+    PaginatedPropertyRead, PropertyComparisonItem, PropertyOwnerListing, PropertyStatsResponse, PropertyCountResponse
 )
 from app.models.models import (
     Property, User, PropertyPricing, PropertyMedia, PropertyLocation,
@@ -960,4 +960,51 @@ def get_recommended_properties(
         return result
     except Exception as e:
         logger.error(f"Error in get_recommended_properties: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unexpected error occurred")
+    
+
+def get_property_counts(
+    *,
+    session: Session
+) -> PropertyCountResponse:
+    """
+    Get counts of all properties, grouped by status.
+
+    Args:
+        session: SQLModel database session.
+
+    Returns:
+        PropertyCountResponse with total, available, and rented counts.
+
+    Raises:
+        HTTPException: If a database error occurs.
+    """
+    try:
+        # Query for counts by status
+        status_counts = session.exec(
+            select(Property.status, func.count(Property.property_id))
+            .group_by(Property.status)
+        ).all()
+
+        # Initialize response
+        counts = {
+            "total": 0,
+            "available": 0,
+            "rented": 0
+        }
+
+        # Aggregate counts
+        for status, count in status_counts:
+            counts["total"] += count
+            if status == PropertyStatusEnum.available:
+                counts["available"] = count
+            elif status == PropertyStatusEnum.rented:
+                counts["rented"] = count
+
+        return PropertyCountResponse(**counts)
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_property_counts: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        logger.error(f"Unexpected error in get_property_counts: {str(e)}")
         raise HTTPException(status_code=500, detail="Unexpected error occurred")

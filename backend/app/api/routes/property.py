@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from typing import Optional, List
 from fastapi import Query
 import logging
-from app.api.deps import get_db_session, get_current_user, require_owner_or_admin
+from app.api.deps import get_db_session, get_current_user, require_owner_or_admin, require_admin
 from app.crud.crud_property import (
     create_property,
     get_property_detail_by_id,
@@ -13,7 +13,8 @@ from app.crud.crud_property import (
     get_properties_for_comparison,
     get_owner_properties,
     get_property_stats,
-    get_recommended_properties
+    get_recommended_properties,
+    get_property_counts
 )
 from app.models.models import User, PropertyCategory, City, District, Commune, Feature
 from app.models.property_schemas import (
@@ -29,7 +30,8 @@ from app.models.property_schemas import (
     CategoryResponse,
     PropertyComparisonRequest,
     FeatureResponse,
-    PropertyStatsResponse
+    PropertyStatsResponse,
+    PropertyCountResponse
 )
 
 logging.basicConfig(level=logging.DEBUG)
@@ -37,6 +39,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/properties")
 
+@router.get("/count", response_model=PropertyCountResponse)
+def get_property_counts_handler(
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Get counts of all properties, grouped by status (total, available, rented).
+    Restricted to admins.
+    """
+    logger.debug("Fetching property counts for admin")
+    return get_property_counts(session=session)
 
 @router.get("/recommended", response_model=List[PropertyRead])
 def get_recommended_properties_handler(

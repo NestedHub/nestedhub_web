@@ -254,3 +254,11 @@ class FeatureResponse(BaseModel):
 class PropertyStatsResponse(BaseModel):
     total_owned: int
     total_rented: int
+
+
+class PropertyCountResponse(BaseModel):
+    total: int
+    available: int
+    rented: int
+    class Config:
+        from_attributes = True
