@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 from sqlmodel import Session, select
@@ -7,7 +7,8 @@ from app.core.email import send_email  # Import the send_email function
 from app.crud.crud_user import (
     create_db_user, authenticate_user, verify_email_code,
     request_password_reset, reset_password, revoke_token,
-    get_user_by_id, update_user_in_db, authenticate_google_user
+    get_user_by_id, update_user_in_db, authenticate_google_user,
+    search_users, list_users, delete_user
 )
 from app.models.models import User, UserRole
 from app.api.deps import get_db_session, get_current_user, require_admin, get_current_user_optional
@@ -16,14 +17,62 @@ from app.core.config import settings
 import httpx
 import urllib.parse
 
-GOOGLE_CLIENT_ID=settings.GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET=settings.GOOGLE_CLIENT_SECRET
-GOOGLE_REDIRECT_URI=settings.GOOGLE_REDIRECT_URI
+GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET = settings.GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI = settings.GOOGLE_REDIRECT_URI
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
 router = APIRouter(prefix="/users")
+
+
+@router.get("/search", response_model=List[UserResponse])
+def search_users_handler(
+    name: Optional[str] = Query(
+        None, description="Search by name (partial match)"),
+    email: Optional[str] = Query(
+        None, description="Search by email (partial match)"),
+    phone: Optional[str] = Query(
+        None, description="Search by phone (partial match)"),
+    role: Optional[UserRole] = Query(None, description="Filter by role"),
+    is_active: Optional[bool] = Query(
+        None, description="Filter by active status"),
+    is_approved: Optional[bool] = Query(
+        None, description="Filter by approval status"),
+    skip: int = Query(0, ge=0, description="Pagination offset"),
+    limit: int = Query(10, ge=1, le=100, description="Pagination limit"),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Search for users by name, email, phone, role, or status. Restricted to admins.
+    Supports pagination.
+    """
+    users = search_users(
+        session=session,
+        name=name,
+        email=email,
+        phone=phone,
+        role=role,
+        is_active=is_active,
+        is_approved=is_approved,
+        skip=skip,
+        limit=limit
+    )
+
+    return [UserResponse(
+        user_id=user.user_id,
+        name=user.name,
+        email=user.email,
+        phone=user.phone,
+        role=user.role,
+        id_card_url=user.id_card_url,
+        profile_picture_url=user.profile_picture_url,
+        is_email_verified=user.is_email_verified,
+        is_approved=user.is_approved,
+        is_active=user.is_active
+    ) for user in users]
 
 
 @router.get("/google/login")
@@ -41,6 +90,7 @@ async def google_login():
     }
     auth_url = f"{GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
     return {"auth_url": auth_url}
+
 
 @router.get("/google/callback", response_model=TokenResponse)
 async def google_callback(
@@ -63,12 +113,14 @@ async def google_callback(
             }
         )
         if token_response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Failed to exchange code for token")
-        
+            raise HTTPException(
+                status_code=400, detail="Failed to exchange code for token")
+
         token_data = token_response.json()
         access_token = token_data.get("access_token")
         if not access_token:
-            raise HTTPException(status_code=400, detail="No access token received")
+            raise HTTPException(
+                status_code=400, detail="No access token received")
 
         # Fetch user info
         user_response = await client.get(
@@ -76,8 +128,9 @@ async def google_callback(
             headers={"Authorization": f"Bearer {access_token}"}
         )
         if user_response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Failed to fetch user info")
-        
+            raise HTTPException(
+                status_code=400, detail="Failed to fetch user info")
+
         user_info = user_response.json()
         email = user_info.get("email")
         name = user_info.get("name", "Google User")
@@ -85,7 +138,8 @@ async def google_callback(
         picture = user_info.get("picture")
 
         if not email or not google_id:
-            raise HTTPException(status_code=400, detail="Invalid user info from Google")
+            raise HTTPException(
+                status_code=400, detail="Invalid user info from Google")
 
         # Authenticate or create user
         tokens = authenticate_google_user(
@@ -422,4 +476,91 @@ def update_user(
         is_email_verified=updated_user.is_email_verified,
         is_approved=updated_user.is_approved,
         is_active=updated_user.is_active
+    )
+
+
+@router.get("/", response_model=List[UserResponse])
+def list_users_handler(
+    skip: int = Query(0, ge=0, description="Pagination offset"),
+    limit: int = Query(10, ge=1, le=100, description="Pagination limit"),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(require_admin)
+):
+    """
+    List all users with pagination. Restricted to admins.
+    """
+    users = list_users(session=session, skip=skip, limit=limit)
+    return [UserResponse(
+        user_id=user.user_id,
+        name=user.name,
+        email=user.email,
+        phone=user.phone,
+        role=user.role,
+        id_card_url=user.id_card_url,
+        profile_picture_url=user.profile_picture_url,
+        is_email_verified=user.is_email_verified,
+        is_approved=user.is_approved,
+        is_active=user.is_active
+    ) for user in users]
+
+
+@router.delete("/{user_id}")
+def delete_user_handler(
+    user_id: int,
+    hard_delete: bool = Query(
+        False, description="Set to true for permanent deletion"),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Delete a user (soft delete by default, or hard delete if specified).
+    - Soft delete: Sets is_active=False.
+    - Hard delete: Removes user from database.
+    Restricted to admins.
+    """
+    if user_id == current_user.user_id:
+        raise HTTPException(
+            status_code=400, detail="Admins cannot delete themselves")
+
+    delete_user(session=session, user_id=user_id, hard_delete=hard_delete)
+    return {"message": f"User {'permanently deleted' if hard_delete else 'deactivated'}"}
+
+
+@router.patch("/{user_id}/ban", response_model=UserResponse)
+def ban_user(
+    user_id: int,
+    ban: bool = Query(True, description="True to ban, False to unban"),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Ban or unban a user by setting their is_active status.
+    - ban=True: Deactivates the user (bans them).
+    - ban=False: Reactivates the user (unbans them).
+    Restricted to admins.
+    """
+    if user_id == current_user.user_id:
+        raise HTTPException(
+            status_code=400, detail="Admins cannot ban themselves")
+
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_active = not ban
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    return UserResponse(
+        user_id=user.user_id,
+        name=user.name,
+        email=user.email,
+        phone=user.phone,
+        role=user.role,
+        id_card_url=user.id_card_url,
+        profile_picture_url=user.profile_picture_url,
+        is_email_verified=user.is_email_verified,
+        is_approved=user.is_approved,
+        is_active=user.is_active
     )

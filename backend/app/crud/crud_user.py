@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import secrets
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -661,3 +661,57 @@ def update_user_in_db(
     except Exception:
         raise HTTPException(status_code=500, detail="Database error occurred")
 
+def search_users(
+    session: Session,
+    name: Optional[str] = None,
+    email: Optional[str] = None,
+    phone: Optional[str] = None,
+    role: Optional[UserRole] = None,
+    is_active: Optional[bool] = None,
+    is_approved: Optional[bool] = None,
+    skip: int = 0,
+    limit: int = 10
+) -> List[User]:
+    """
+    Search users by name, email, phone, role, or status with pagination.
+    """
+    query = select(User)
+    
+    if name:
+        query = query.where(User.name.ilike(f"%{name}%"))
+    if email:
+        query = query.where(User.email.ilike(f"%{email}%"))
+    if phone:
+        query = query.where(User.phone.ilike(f"%{phone}%"))
+    if role:
+        query = query.where(User.role == role)
+    if is_active is not None:
+        query = query.where(User.is_active == is_active)
+    if is_approved is not None:
+        query = query.where(User.is_approved == is_approved)
+
+    return session.exec(query.offset(skip).limit(limit)).all()
+
+def list_users(session: Session, skip: int = 0, limit: int = 10) -> List[User]:
+    """
+    Retrieve a paginated list of all users.
+    """
+    return session.exec(select(User).offset(skip).limit(limit)).all()
+
+def delete_user(session: Session, user_id: int, hard_delete: bool = False) -> bool:
+    """
+    Delete a user (soft delete by setting is_active=False or hard delete by removing from database).
+    Returns True if deletion was successful.
+    """
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if hard_delete:
+        session.delete(user)
+    else:
+        user.is_active = False
+        session.add(user)
+    
+    session.commit()
+    return True
