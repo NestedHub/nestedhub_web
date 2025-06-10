@@ -250,3 +250,7 @@ class PaginatedPropertyRead(BaseModel):
 class FeatureResponse(BaseModel):
     feature_id: int
     feature_name: str
+
+class PropertyStatsResponse(BaseModel):
+    total_owned: int
+    total_rented: int

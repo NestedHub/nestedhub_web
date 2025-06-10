@@ -4,7 +4,7 @@ from app.models.enums import UserRole, PropertyStatusEnum
 from app.models.property_schemas import (
     PropertyCreate, PropertyRead, PropertyUpdate,
     PropertyPricingRead, PropertyMediaRead, PropertyLocationRead, FeatureRead,
-    PaginatedPropertyRead, PropertyComparisonItem, PropertyOwnerListing
+    PaginatedPropertyRead, PropertyComparisonItem, PropertyOwnerListing, PropertyStatsResponse
 )
 from app.models.models import (
     Property, User, PropertyPricing, PropertyMedia, PropertyLocation,
@@ -808,3 +808,51 @@ def get_owner_properties(session: Session, user: User) -> List[PropertyOwnerList
         for property, category in results
     ]
     return properties
+
+
+def get_property_stats(
+    *,
+    session: Session,
+    user: User
+) -> PropertyStatsResponse:
+    """
+    Retrieve statistics for properties owned and rented by the authenticated user.
+
+    Args:
+        session: SQLModel database session.
+        user: Authenticated user.
+
+    Returns:
+        PropertyStatsResponse with counts of owned and rented properties.
+
+    Raises:
+        HTTPException: If user is not a property owner or not approved.
+    """
+    if user.role != UserRole.property_owner:
+        raise HTTPException(
+            status_code=403, detail="Only property owners can access property stats")
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=403, detail="Account awaiting approval")
+
+    try:
+        total_owned = session.exec(
+            select(func.count()).select_from(Property).where(Property.user_id == user.user_id)
+        ).first() or 0
+
+        total_rented = session.exec(
+            select(func.count()).select_from(Property).where(
+                (Property.user_id == user.user_id) & (Property.status == PropertyStatusEnum.rented)
+            )
+        ).first() or 0
+
+        return PropertyStatsResponse(
+            total_owned=total_owned,
+            total_rented=total_rented
+        )
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_property_stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        logger.error(f"Unexpected error in get_property_stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unexpected error occurred")

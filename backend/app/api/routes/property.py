@@ -11,7 +11,8 @@ from app.crud.crud_property import (
     delete_property,
     search_properties,
     get_properties_for_comparison,
-    get_owner_properties
+    get_owner_properties,
+    get_property_stats
 )
 from app.models.models import User, PropertyCategory, City, District, Commune, Feature
 from app.models.property_schemas import (
@@ -26,7 +27,8 @@ from app.models.property_schemas import (
     CommuneResponse,
     CategoryResponse,
     PropertyComparisonRequest,
-    FeatureResponse
+    FeatureResponse,
+    PropertyStatsResponse
 )
 
 logging.basicConfig(level=logging.DEBUG)
@@ -48,6 +50,22 @@ def create_new_property(
         current_user=current_user
     )
 
+
+@router.get("/stats", response_model=PropertyStatsResponse)
+def get_property_owner_stats(
+    user: User = Depends(require_owner_or_admin),
+    session: Session = Depends(get_db_session)
+):
+    logger.debug("Fetching property stats for user %s with session: %s",
+                 user.user_id, session)
+    try:
+        stats = get_property_stats(session=session, user=user)
+        return stats
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching property stats: {str(e)}")
 
 @router.get("/my-listings", response_model=PropertyOwnerListingsResponse)
 def get_my_property_listings(
@@ -277,3 +295,4 @@ def get_features(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch features: {str(e)}")
+
