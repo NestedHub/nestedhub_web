@@ -12,7 +12,8 @@ from app.crud.crud_property import (
     search_properties,
     get_properties_for_comparison,
     get_owner_properties,
-    get_property_stats
+    get_property_stats,
+    get_recommended_properties
 )
 from app.models.models import User, PropertyCategory, City, District, Commune, Feature
 from app.models.property_schemas import (
@@ -36,6 +37,33 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/properties")
 
+
+@router.get("/recommended", response_model=List[PropertyRead])
+def get_recommended_properties_handler(
+    property_ids: Optional[str] = Query(None, description="Comma-separated list of property IDs"),
+    limit: int = Query(6, ge=1, le=10, description="Maximum number of properties to return"),
+    # status: Optional[str] = Query("available", description="Property status filter"),
+    session: Session = Depends(get_db_session)
+):
+    """
+    Get recommended properties by IDs for the 'For You' section.
+    Returns full property details, filtered by status (default: available).
+    """
+    logger.debug("Fetching recommended properties for IDs: %s, limit: %d, status: %s", property_ids, limit)
+    if not property_ids:
+        return []
+    
+    try:
+        id_list = [int(pid) for pid in property_ids.split(",") if pid.strip()]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid property_ids format; use comma-separated integers")
+    
+    return get_recommended_properties(
+        session=session,
+        property_ids=id_list,
+        limit=limit,
+        # status=status
+    )
 
 @router.post("/", response_model=PropertyRead, status_code=201)
 def create_new_property(

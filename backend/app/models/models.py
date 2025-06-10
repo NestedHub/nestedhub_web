@@ -171,7 +171,7 @@ class Property(SQLModel, table=True):
                          server_default=text("CURRENT_TIMESTAMP"))
     )
     rating: Optional[Decimal] = Field(default=None, sa_column=Column(
-        Numeric(2, 2)), description="Bayesian average rating based on reviews")
+        Numeric(4, 2)), description="Bayesian average rating based on reviews")
     user: "User" = Relationship(back_populates="properties")
     property_category: "PropertyCategory" = Relationship(
         back_populates="properties")
