@@ -3,7 +3,7 @@ from sqlmodel import Session, create_engine, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.exc import IntegrityError
 from app.core.config import settings
-from app.models.models import City, District, Commune, User, PropertyCategory, Property, PropertyMedia, PropertyPricing, PropertyLocation, Review, ViewingRequest, WishList
+from app.models.models import City, District, Commune, User, PropertyCategory, Property, PropertyMedia, PropertyPricing, PropertyLocation, Review, ViewingRequest, WishList, Feature
 from app.core.security import get_password_hash
 from app.models.enums import UserRole, PropertyStatusEnum, MediaType, ReviewStatusEnum, ViewingRequestStatusEnum
 from datetime import datetime, date, timedelta, timezone
@@ -53,8 +53,37 @@ def get_or_create(session: Session, model, **kwargs):
 
 def init_db(session: Session) -> None:
     # Load Property Categories from CSV
-    pass
-    '''with open('app/data/property_categories.csv', mode='r', newline='', encoding='utf-8') as file:
+    # pass
+    with open('app/data/property_features.csv', mode='r', newline='', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+
+        feature_names = set()
+        features = []
+
+        for row in reader:
+            feature_name = row['feature'].strip()
+
+            if feature_name in feature_names:
+                continue  # Already prepared for insert in-memory
+
+            # Check if it already exists in DB
+            existing_feature = session.exec(
+                select(Feature).where(
+                    Feature.feature_name == feature_name)
+            ).first()
+
+            if not existing_feature:
+                feature = Feature(feature_name=feature_name)
+                features.append(feature)
+                feature_names.add(feature_name)
+                logger.info(f"Prepared feature: {feature_name}")
+            else:
+                logger.info(f"Feature '{feature_name}' already exists, skipping.")
+
+        if features:
+            session.add_all(features)
+
+    with open('app/data/property_categories.csv', mode='r', newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
 
         category_names = set()
@@ -82,6 +111,9 @@ def init_db(session: Session) -> None:
 
         if categories:
             session.add_all(categories)
+
+
+    
 
     # Load Cambodia Admin Data from CSV
     with open('app/data/cambodia_admin_nested.csv', mode='r', newline='', encoding='utf-8') as file:
@@ -383,4 +415,4 @@ def init_db(session: Session) -> None:
         logger.info("Data and admin user successfully inserted into the database!")
     except IntegrityError as e:
         session.rollback()
-        logger.error("Error inserting data:", e)'''
+        logger.error("Error inserting data:", e)
