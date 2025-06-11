@@ -1,57 +1,109 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
+import { toast } from "react-hot-toast"
+import { Ban, Check, X } from "lucide-react"
 import AdminSidebar from "@/component/admin/sidebar"
 import BackButton from "@/component/ui/backbutton"
-
-// Mock data for a property owner
-const mockPropertyOwnerDetail = {
-  name: "Song Lyne",
-  email: "lyne@gmail.com",
-  phone: "0987654321",
-  telegram: "None",
-}
-
-// Mock data for rental properties
-const mockRentalProperties = [
-  {
-    id: "01",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "02",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-]
+import { userApi, type User } from "@/lib/api/user"
 
 export default function PropertyOwnerDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const ownerId = params.id as string
-  const [showAllRentModal, setShowAllRentModal] = useState(false)
+  const userId = parseInt(params.id as string)
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // In a real app, you would fetch the property owner data based on the ID
-  const propertyOwner = mockPropertyOwnerDetail
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        setIsLoading(true)
+        const userData = await userApi.getUser(userId)
+        if (userData.role !== 'property_owner') {
+          throw new Error('Not a property owner')
+        }
+        setUser(userData)
+      } catch (error) {
+        console.error('Error fetching property owner:', error)
+        toast.error('Failed to fetch property owner details')
+        router.push('/admin/usermanagement/propertyowner') // Redirect back to list on error
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  const handleShowAllRent = () => {
-    setShowAllRentModal(true)
+    if (userId) {
+      fetchUser()
+    }
+  }, [userId, router])
+
+  const handleBanToggle = async () => {
+    if (!user) return;
+
+    try {
+      await userApi.toggleUserBan(userId, user.is_active);
+      toast.success(user.is_active ? 'Property owner banned successfully' : 'Property owner unbanned successfully');
+      // Refresh user data
+      const updatedUser = await userApi.getUser(userId);
+      setUser(updatedUser);
+    } catch (error) {
+      console.error('Error toggling property owner ban:', error);
+      toast.error('Failed to update property owner status');
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!user) return;
+
+    try {
+      await userApi.approvePropertyOwner(userId);
+      toast.success('Property owner approved successfully');
+      // Refresh user data
+      const updatedUser = await userApi.getUser(userId);
+      setUser(updatedUser);
+    } catch (error) {
+      console.error('Error approving property owner:', error);
+      toast.error('Failed to approve property owner');
+    }
+  };
+
+  const handleReject = async () => {
+    if (!user) return;
+
+    if (!confirm('Are you sure you want to reject this property owner?')) {
+      return;
+    }
+
+    try {
+      await userApi.rejectPropertyOwner(userId);
+      toast.success('Property owner rejected successfully');
+      router.push('/admin/usermanagement/propertyowner');
+    } catch (error) {
+      console.error('Error rejecting property owner:', error);
+      toast.error('Failed to reject property owner');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <AdminSidebar>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-gray-500">Loading...</div>
+        </div>
+      </AdminSidebar>
+    )
   }
 
-  const handleCloseModal = () => {
-    setShowAllRentModal(false)
-  }
-
-  const handleViewProperty = (id: string) => {
-    router.push(`/admin/property-listing/rent/${id}`)
-    setShowAllRentModal(false) // Close the modal when navigating
+  if (!user) {
+    return (
+      <AdminSidebar>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-red-500">Property owner not found</div>
+        </div>
+      </AdminSidebar>
+    )
   }
 
   return (
@@ -59,18 +111,18 @@ export default function PropertyOwnerDetailPage() {
       <div>
         <div className="flex items-center mb-6">
           <BackButton className="mr-4" />
-          <h1 className="text-2xl font-bold">Property owner Detail</h1>
+          <h1 className="text-2xl font-bold">Property Owner Detail</h1>
         </div>
 
-        <div className="bg-white rounded-md shadow overflow-hidden mb-6">
+        <div className="bg-white rounded-md shadow overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <tbody className="divide-y divide-gray-200">
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50 w-1/4">
-                  <span className="text-sm font-medium text-gray-900">Title</span>
+                  <span className="text-sm font-medium text-gray-900">ID</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">Detail</span>
+                  <span className="text-sm text-gray-500">{user.user_id}</span>
                 </td>
               </tr>
               <tr>
@@ -78,17 +130,17 @@ export default function PropertyOwnerDetailPage() {
                   <span className="text-sm font-medium text-gray-900">Name</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.name}</span>
+                  <span className="text-sm text-gray-500">{user.name}</span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Profile</span>
+                  <span className="text-sm font-medium text-gray-900">Profile Picture</span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="h-20 w-20 rounded-full overflow-hidden">
                     <Image
-                      src="/avatar-placeholder.png"
+                      src={user.profile_picture_url || "/avatar-placeholder.png"}
                       alt="User Avatar"
                       width={80}
                       height={80}
@@ -102,7 +154,7 @@ export default function PropertyOwnerDetailPage() {
                   <span className="text-sm font-medium text-gray-900">Email</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.email}</span>
+                  <span className="text-sm text-gray-500">{user.email}</span>
                 </td>
               </tr>
               <tr>
@@ -110,134 +162,106 @@ export default function PropertyOwnerDetailPage() {
                   <span className="text-sm font-medium text-gray-900">Phone</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.phone}</span>
+                  <span className="text-sm text-gray-500">{user.phone || 'N/A'}</span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Rents</span>
+                  <span className="text-sm font-medium text-gray-900">Status</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <button
-                    onClick={handleShowAllRent}
-                    className="bg-green-800 text-white px-4 py-2 rounded-md hover:bg-green-700"
-                  >
-                    Show all rent
-                  </button>
+                  <div className="flex flex-col gap-1">
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        user.is_active
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {user.is_active ? 'Active' : 'Banned'}
+                    </span>
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        user.is_approved
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {user.is_approved ? 'Approved' : 'Pending Approval'}
+                    </span>
+                  </div>
                 </td>
               </tr>
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
+                  <span className="text-sm font-medium text-gray-900">Email Verified</span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      user.is_email_verified
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
+                    {user.is_email_verified ? 'Verified' : 'Not Verified'}
+                  </span>
+                </td>
+              </tr>
+              {user.id_card_url && (
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
+                    <span className="text-sm font-medium text-gray-900">ID Card</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="h-40 w-64 relative">
+                      <Image
+                        src={user.id_card_url}
+                        alt="ID Card"
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Modal for showing all rental properties */}
-      {showAllRentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full">
-            <h2 className="text-xl font-bold mb-4">All Rent</h2>
-
-            <table className="min-w-full divide-y divide-gray-200 mb-6">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    ID
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Title
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Type
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Status
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Date List
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {mockRentalProperties.map((property) => (
-                  <tr key={property.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{property.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        {property.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.dateList}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleViewProperty(property.id)}
-                          className="text-gray-600 hover:text-gray-900"
-                          title="View Details"
-                        >
-                          <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                            <path
-                              d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="flex justify-end">
+        <div className="mt-6 flex space-x-4">
+          {!user.is_approved ? (
+            <>
               <button
-                onClick={handleCloseModal}
-                className="bg-green-800 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                onClick={handleApprove}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
               >
-                Close
+                <Check className="h-4 w-4 mr-2" />
+                Approve
               </button>
-            </div>
-          </div>
+              <button
+                onClick={handleReject}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Reject
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleBanToggle}
+              className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                user.is_active
+                  ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                  : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+              } focus:outline-none focus:ring-2 focus:ring-offset-2`}
+            >
+              <Ban className="h-4 w-4 mr-2" />
+              {user.is_active ? 'Ban Property Owner' : 'Unban Property Owner'}
+            </button>
+          )}
         </div>
-      )}
+      </div>
     </AdminSidebar>
   )
 }

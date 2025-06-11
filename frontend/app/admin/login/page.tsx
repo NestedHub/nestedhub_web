@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import Link from 'next/link';
 import { authApi } from '@/lib/api/auth';
 import { useAuth } from '@/app/providers/AuthProvider';
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: '',
@@ -15,27 +14,7 @@ export default function LoginPage() {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated, user } = useAuth();
-
-  useEffect(() => {
-    // Check if already authenticated
-    if (isAuthenticated && user) {
-      // Redirect based on role
-      switch (user.role) {
-        case 'admin':
-          router.replace('/admin/dashboard');
-          break;
-        case 'property_owner':
-          router.replace('/propertyowner/dashboard');
-          break;
-        case 'customer':
-          router.replace('/user');
-          break;
-        default:
-          router.replace('/');
-      }
-    }
-  }, [isAuthenticated, user, router]);
+  const { login } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -49,28 +28,25 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      console.log('Attempting login with:', formData.email);
       const response = await authApi.login(formData.email, formData.password);
-      
-      console.log('Login response:', response);
       
       // Check if we have valid authentication
       if (!response.access_token || !response.user) {
         throw new Error('Invalid response from server');
       }
 
-      // Store token in localStorage
-      localStorage.setItem('user', JSON.stringify({
-        ...response.user,
-        token: response.access_token
-      }));
+      // Verify admin role
+      if (response.user.role !== 'admin') {
+        throw new Error('Access denied. Admin privileges required.');
+      }
 
       // Call the login function from AuthProvider
       await login(response.access_token, response.user);
       
-      // The redirect will be handled by the login function in AuthProvider
+      // Redirect to dashboard
+      router.replace('/admin/dashboard');
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('Admin login error:', err);
       if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -87,14 +63,14 @@ export default function LoginPage() {
           <Image 
             src="/logogreen.png" 
             alt="NestedHub Logo" 
-            width={200}
-            height={60}
-            priority
+            width={200} 
+            height={60} 
+            priority 
             style={{ width: 'auto', height: 'auto' }}
           />
         </div>
 
-        <h2 className="text-2xl font-bold text-center mb-6">Welcome Back!</h2>
+        <h2 className="text-2xl font-bold text-center mb-6">Admin Login</h2>
 
         {error && (
           <div className="bg-red-50 text-red-500 p-3 rounded-md mb-4">
@@ -138,18 +114,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-green-800 hover:bg-green-700 text-white py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+            className={`w-full py-2 px-4 rounded-md text-white font-medium ${
+              isLoading
+                ? 'bg-green-600 cursor-not-allowed'
+                : 'bg-green-800 hover:bg-green-700'
+            }`}
           >
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-
-        <div className="mt-4 text-center">
-          <Link href="/" className="text-green-800 hover:text-green-700">
-            Back to Home
-          </Link>
-        </div>
       </div>
     </div>
   );
-}
+} 

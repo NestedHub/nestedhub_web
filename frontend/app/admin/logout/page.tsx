@@ -21,7 +21,7 @@ export default function AdminLogoutPage() {
 
     // Redirect to admin login page after a short delay
     setTimeout(() => {
-      router.push("/admin-login")
+      router.push("/login")
     }, 1000)
   }
 
