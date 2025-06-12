@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from pydantic import EmailStr, ValidationError, validate_email
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
 from app.models.models import User, UserRole, VerificationCodeDB, RevokedToken, OAuthProvider, Feature, PropertyCategory
@@ -721,3 +721,32 @@ def delete_user(session: Session, user_id: int, hard_delete: bool = False) -> bo
     
     session.commit()
     return True
+
+def get_user_count(
+    session: Session,
+    name: Optional[str] = None,
+    email: Optional[str] = None,
+    phone: Optional[str] = None,
+    role: Optional[UserRole] = None,
+    is_active: Optional[bool] = None,
+    is_approved: Optional[bool] = None
+) -> int:
+    """
+    Get total count of users with filters.
+    """
+    query = select(func.count()).select_from(User)
+    
+    if name:
+        query = query.where(User.name.ilike(f"%{name}%"))
+    if email:
+        query = query.where(User.email.ilike(f"%{email}%"))
+    if phone:
+        query = query.where(User.phone.ilike(f"%{phone}%"))
+    if role:
+        query = query.where(User.role == role)
+    if is_active is not None:
+        query = query.where(User.is_active == is_active)
+    if is_approved is not None:
+        query = query.where(User.is_approved == is_approved)
+
+    return session.exec(query).first() or 0

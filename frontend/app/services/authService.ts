@@ -21,7 +21,7 @@ interface LoginResponse {
   user: {
     id: string;
     email: string;
-    role: 'user' | 'propertyowner' | 'admin';
+    role: 'customer' | 'property_owner' | 'admin';
   };
 }
 
@@ -91,16 +91,10 @@ export const loginService = async (email: string, password: string): Promise<Log
         throw new Error('Invalid token payload');
       }
 
-      // Map backend role to frontend role
-      const roleMap: Record<string, 'user' | 'propertyowner' | 'admin'> = {
-        'customer': 'user',
-        'property_owner': 'propertyowner',  // Updated to match backend format
-        'admin': 'admin'
-      };
-
-      const mappedRole = roleMap[tokenPayload.role as keyof typeof roleMap];
-      if (!mappedRole) {
-        console.error('Unknown role:', tokenPayload.role);
+      // The backend roles are already in the correct format, no need to map them
+      const role = tokenPayload.role;
+      if (!['customer', 'property_owner', 'admin'].includes(role)) {
+        console.error('Unknown role:', role);
         throw new Error('Invalid user role');
       }
 
@@ -111,9 +105,9 @@ export const loginService = async (email: string, password: string): Promise<Log
         user: {
           id: tokenPayload.sub,
           email: tokenPayload.email,
-          role: mappedRole
+          role: role as 'customer' | 'property_owner' | 'admin'
         }
-      } as LoginResponse;
+      };
     } catch (tokenError) {
       console.error('Error parsing token:', tokenError);
       throw new Error('Invalid token format');

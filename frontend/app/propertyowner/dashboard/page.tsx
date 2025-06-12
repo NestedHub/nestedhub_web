@@ -21,19 +21,42 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/properties/my-stats`, {
+        // Get the user data from localStorage
+        const user = localStorage.getItem('user');
+        if (!user) {
+          throw new Error('Not authenticated');
+        }
+        const userData = JSON.parse(user);
+        if (userData.role !== 'property_owner') {
+          throw new Error('Not authorized');
+        }
+
+        // First, get total properties
+        const myListingsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/properties/my-listings`, {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch dashboard stats');
+        if (!myListingsResponse.ok) {
+          if (myListingsResponse.status === 401) {
+            throw new Error('Not authenticated');
+          }
+          throw new Error('Failed to fetch properties');
         }
 
-        const data = await response.json();
-        setStats(data);
+        const listingsData = await myListingsResponse.json();
+        const totalProperties = listingsData.properties.length;
+        const activeProperties = listingsData.properties.filter(
+          (property: any) => property.status === 'available'
+        ).length;
+
+        setStats({
+          totalProperties,
+          activeProperties,
+        });
       } catch (err) {
         console.error('Error fetching dashboard stats:', err);
         setError('Failed to load dashboard statistics');

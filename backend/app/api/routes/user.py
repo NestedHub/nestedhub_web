@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from typing import Optional, List
 from app.core.email import send_email  # Import the send_email function
 from app.crud.crud_user import (
     create_db_user, authenticate_user, verify_email_code,
     request_password_reset, reset_password, revoke_token,
     get_user_by_id, update_user_in_db, authenticate_google_user,
-    search_users, list_users, delete_user
+    search_users, list_users, delete_user, get_user_count
 )
 from app.models.models import User, UserRole
 from app.api.deps import get_db_session, get_current_user, require_admin, get_current_user_optional
-from app.models.user_schemas import UserRole, UserCreate, UserResponse, TokenResponse, PasswordResetRequest, PasswordResetConfirm, TokenRevoke, UserUpdate
+from app.models.user_schemas import UserRole, UserCreate, UserResponse, TokenResponse, PasswordResetRequest, PasswordResetConfirm, TokenRevoke, UserUpdate, UserCountResponse
 from app.core.config import settings
 import httpx
 import urllib.parse
@@ -564,3 +564,34 @@ def ban_user(
         is_approved=user.is_approved,
         is_active=user.is_active
     )
+
+
+@router.get("/count", response_model=UserCountResponse)
+def get_user_count_handler(
+    name: Optional[str] = Query(
+        None, description="Search by name (partial match)"),
+    email: Optional[str] = Query(
+        None, description="Search by email (partial match)"),
+    phone: Optional[str] = Query(
+        None, description="Search by phone (partial match)"),
+    role: Optional[UserRole] = Query(None, description="Filter by role"),
+    is_active: Optional[bool] = Query(
+        None, description="Filter by active status"),
+    is_approved: Optional[bool] = Query(
+        None, description="Filter by approval status"),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Get total count of users with filters. Restricted to admins.
+    """
+    total = get_user_count(
+        session=session,
+        name=name,
+        email=email,
+        phone=phone,
+        role=role,
+        is_active=is_active,
+        is_approved=is_approved
+    )
+    return UserCountResponse(total=total)

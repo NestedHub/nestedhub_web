@@ -1,10 +1,14 @@
-FROM node:18-alpine
+FROM node:18.18.0-alpine
 
 WORKDIR /app
 
+# Copy package files
 COPY package.json package-lock.json* ./
-RUN npm install
 
+# Install dependencies
+RUN npm ci
+
+# Copy the rest of the code
 COPY . .
 
 ENV NODE_ENV=development
