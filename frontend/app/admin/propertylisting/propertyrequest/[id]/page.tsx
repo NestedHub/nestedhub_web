@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -258,13 +258,19 @@ export default function PropertyRequestDetailPage() {
                   <div className="font-medium">Name: {property.owner.name}</div>
                 </div>
                 <div>
-                  <div className="font-medium">phone: {property.owner.phone}</div>
+                  <div className="font-medium">
+                    phone: {property.owner.phone}
+                  </div>
                 </div>
                 <div>
-                  <div className="font-medium">email: {property.owner.email}</div>
+                  <div className="font-medium">
+                    email: {property.owner.email}
+                  </div>
                 </div>
                 <div>
-                  <div className="font-medium">telegram link: {property.owner.telegram}</div>
+                  <div className="font-medium">
+                    telegram link: {property.owner.telegram}
+                  </div>
                 </div>
               </div>
             </div>
@@ -272,5 +278,6 @@ export default function PropertyRequestDetailPage() {
         </div>
       </div>
     </AdminSidebar>
+  );
   );
 }

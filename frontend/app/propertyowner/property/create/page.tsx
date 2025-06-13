@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import Sidebar from "@/component/dashoboadpropertyowner/sidebar"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
 // Define the steps for property creation
 const steps = [
   { id: "general", label: "General" },
@@ -13,70 +13,70 @@ const steps = [
   { id: "cost", label: "Cost" },
   { id: "image", label: "Image and video" },
   { id: "contacts", label: "Contacts" },
-]
+];
 
 // Define types for our form data
 type Facilities = {
-  guard: boolean
-  airConditioning: boolean
-  internet: boolean
-  parking: boolean
-}
+  guard: boolean;
+  airConditioning: boolean;
+  internet: boolean;
+  parking: boolean;
+};
 
 type ForRent = {
-  maleStudent: boolean
-  femaleStudent: boolean
-  manJob: boolean
-  womanJob: boolean
-}
+  maleStudent: boolean;
+  femaleStudent: boolean;
+  manJob: boolean;
+  womanJob: boolean;
+};
 
 type GeneralSection = {
-  propertyOwner: string
-  propertyType: string
-  availableFrom: string
-  title: string
-  description: string
-  bedrooms: string
-  bathrooms: string
-  facilities: Facilities
-  forRent: ForRent
-}
+  propertyOwner: string;
+  propertyType: string;
+  availableFrom: string;
+  title: string;
+  description: string;
+  bedrooms: string;
+  bathrooms: string;
+  facilities: Facilities;
+  forRent: ForRent;
+};
 
 type LocationSection = {
-  city: string
-  khan: string
-  sangkat: string
-  streetName: string
-  streetNumber: string
-  mapLocation: string
-}
+  city: string;
+  khan: string;
+  sangkat: string;
+  streetName: string;
+  streetNumber: string;
+  mapLocation: string;
+};
 
 type CostSection = {
-  rentPrice: string
-  electric: string
-  water: string
-  other: string
-}
+  rentPrice: string;
+  electric: string;
+  water: string;
+  other: string;
+};
 
 type ImageSection = {
-  propertyImage: File | null
-  neighborhoodImage: File | null
-}
+  propertyImage: File | null;
+  neighborhoodImage: File | null;
+};
 
 type ContactsSection = {
-  ownerName: string
-  phone: string
-  email: string
-  telegram: string
-}
+  ownerName: string;
+  phone: string;
+  email: string;
+  telegram: string;
+};
 
 type FormData = {
-  general: GeneralSection
-  location: LocationSection
-  cost: CostSection
-  image: ImageSection
-  contacts: ContactsSection
-}
+  general: GeneralSection;
+  location: LocationSection;
+  cost: CostSection;
+  image: ImageSection;
+  contacts: ContactsSection;
+};
 
 // Initial form state
 const initialFormState: FormData = {
@@ -125,40 +125,43 @@ const initialFormState: FormData = {
     email: "",
     telegram: "",
   },
-}
+};
 
 export default function CreatePropertyPage() {
-  const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(0)
-  const [formData, setFormData] = useState<FormData>(initialFormState)
+  const router = useRouter();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState<FormData>(initialFormState);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1)
+      setCurrentStep(currentStep + 1);
     } else {
-      handleSubmit()
+      handleSubmit();
     }
-  }
+  };
 
   const handleBack = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1)
+      setCurrentStep(currentStep - 1);
     } else {
-      router.push("/propertyowner/property")
+      router.push("/propertyowner/property");
     }
-  }
+  };
 
   const handleSubmit = () => {
     // In a real app, you would call an API to create the property
-    console.log("Form submitted:", formData)
-    alert("Property created successfully!")
-    router.push("/propertyowner/property")
-  }
+    console.log("Form submitted:", formData);
+    alert("Property created successfully!");
+    router.push("/propertyowner/property");
+  };
 
-  const updateFormData = <K extends keyof FormData, T extends keyof FormData[K]>(
+  const updateFormData = <
+    K extends keyof FormData,
+    T extends keyof FormData[K]
+  >(
     section: K,
     field: T,
-    value: FormData[K][T],
+    value: FormData[K][T]
   ) => {
     setFormData({
       ...formData,
@@ -166,14 +169,18 @@ export default function CreatePropertyPage() {
         ...formData[section],
         [field]: value,
       },
-    })
-  }
+    });
+  };
 
-  const updateNestedFormData = <K extends keyof FormData, P extends keyof FormData[K], T extends keyof FormData[K][P]>(
+  const updateNestedFormData = <
+    K extends keyof FormData,
+    P extends keyof FormData[K],
+    T extends keyof FormData[K][P]
+  >(
     section: K,
     parentField: P,
     field: T,
-    value: FormData[K][P][T],
+    value: FormData[K][P][T]
   ) => {
     setFormData({
       ...formData,
@@ -184,18 +191,32 @@ export default function CreatePropertyPage() {
           [field]: value,
         } as FormData[K][P],
       },
-    })
-  }
+    });
+  };
 
   const toggleFacility = (facility: keyof Facilities) => {
-    updateNestedFormData("general", "facilities", facility, !formData.general.facilities[facility] as boolean)
-  }
+    updateNestedFormData(
+      "general",
+      "facilities",
+      facility,
+      !formData.general.facilities[facility] as boolean
+    );
+  };
 
   const toggleForRent = (option: keyof ForRent) => {
-    updateNestedFormData("general", "forRent", option, !formData.general.forRent[option] as boolean)
-  }
+    updateNestedFormData(
+      "general",
+      "forRent",
+      option,
+      !formData.general.forRent[option] as boolean
+    );
+  };
 
-  const handleFileChange = (section: "image", field: keyof ImageSection, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (
+    section: "image",
+    field: keyof ImageSection,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (e.target.files && e.target.files[0]) {
       setFormData({
         ...formData,
@@ -203,9 +224,9 @@ export default function CreatePropertyPage() {
           ...formData[section],
           [field]: e.target.files[0],
         },
-      })
+      });
     }
-  }
+  };
 
   // Render different form sections based on current step
   const renderStepContent = () => {
@@ -214,22 +235,30 @@ export default function CreatePropertyPage() {
         return (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Property owner</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Property owner
+              </label>
               <input
                 type="text"
                 value={formData.general.propertyOwner}
-                onChange={(e) => updateFormData("general", "propertyOwner", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("general", "propertyOwner", e.target.value)
+                }
                 placeholder="Name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Property type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Property type
+              </label>
               <div className="relative">
                 <select
                   value={formData.general.propertyType}
-                  onChange={(e) => updateFormData("general", "propertyType", e.target.value)}
+                  onChange={(e) =>
+                    updateFormData("general", "propertyType", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
                 >
                   <option value="Apartment">Apartment</option>
@@ -238,19 +267,33 @@ export default function CreatePropertyPage() {
                   <option value="Condo">Condo</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Available from:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Available from:
+              </label>
               <div className="relative">
                 <select
                   value={formData.general.availableFrom}
-                  onChange={(e) => updateFormData("general", "availableFrom", e.target.value)}
+                  onChange={(e) =>
+                    updateFormData("general", "availableFrom", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
                 >
                   <option value="01 Nov 2024">01 Nov 2024</option>
@@ -259,25 +302,41 @@ export default function CreatePropertyPage() {
                   <option value="15 Dec 2024">15 Dec 2024</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Property detail</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Property detail
+              </label>
               <input
                 type="text"
                 value={formData.general.title}
-                onChange={(e) => updateFormData("general", "title", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("general", "title", e.target.value)
+                }
                 placeholder="Title"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2"
               />
               <textarea
                 value={formData.general.description}
-                onChange={(e) => updateFormData("general", "description", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("general", "description", e.target.value)
+                }
                 placeholder="Description"
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -285,29 +344,39 @@ export default function CreatePropertyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bedroom</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Bedroom
+              </label>
               <input
                 type="number"
                 value={formData.general.bedrooms}
-                onChange={(e) => updateFormData("general", "bedrooms", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("general", "bedrooms", e.target.value)
+                }
                 min="1"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bathroom</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Bathroom
+              </label>
               <input
                 type="number"
                 value={formData.general.bathrooms}
-                onChange={(e) => updateFormData("general", "bathrooms", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("general", "bathrooms", e.target.value)
+                }
                 min="1"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Facilities</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Facilities
+              </label>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -357,7 +426,9 @@ export default function CreatePropertyPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">For rent</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                For rent
+              </label>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -406,17 +477,21 @@ export default function CreatePropertyPage() {
               </div>
             </div>
           </div>
-        )
+        );
 
       case 1: // Location
         return (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City / Province:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                City / Province:
+              </label>
               <div className="relative">
                 <select
                   value={formData.location.city}
-                  onChange={(e) => updateFormData("location", "city", e.target.value)}
+                  onChange={(e) =>
+                    updateFormData("location", "city", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
                 >
                   <option value="Phnom Penh">Phnom Penh</option>
@@ -424,19 +499,33 @@ export default function CreatePropertyPage() {
                   <option value="Battambang">Battambang</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Khan / District:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Khan / District:
+              </label>
               <div className="relative">
                 <select
                   value={formData.location.khan}
-                  onChange={(e) => updateFormData("location", "khan", e.target.value)}
+                  onChange={(e) =>
+                    updateFormData("location", "khan", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
                 >
                   <option value="Phnom Penh">Phnom Penh</option>
@@ -444,19 +533,33 @@ export default function CreatePropertyPage() {
                   <option value="Daun Penh">Daun Penh</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sangkat / Commune:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sangkat / Commune:
+              </label>
               <div className="relative">
                 <select
                   value={formData.location.sangkat}
-                  onChange={(e) => updateFormData("location", "sangkat", e.target.value)}
+                  onChange={(e) =>
+                    updateFormData("location", "sangkat", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
                 >
                   <option value="Bak Kilo">Bak Kilo</option>
@@ -464,19 +567,33 @@ export default function CreatePropertyPage() {
                   <option value="Tuol Svay Prey">Tuol Svay Prey</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Street Name:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Street Name:
+              </label>
               <div className="relative">
                 <select
                   value={formData.location.streetName}
-                  onChange={(e) => updateFormData("location", "streetName", e.target.value)}
+                  onChange={(e) =>
+                    updateFormData("location", "streetName", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
                 >
                   <option value="Phnom Penh">Phnom Penh</option>
@@ -484,19 +601,33 @@ export default function CreatePropertyPage() {
                   <option value="Street 310">Street 310</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Street Number:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Street Number:
+              </label>
               <div className="relative">
                 <select
                   value={formData.location.streetNumber}
-                  onChange={(e) => updateFormData("location", "streetNumber", e.target.value)}
+                  onChange={(e) =>
+                    updateFormData("location", "streetNumber", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
                 >
                   <option value="Phnom Penh">Phnom Penh</option>
@@ -504,19 +635,33 @@ export default function CreatePropertyPage() {
                   <option value="456">456</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Display Location on Map:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Display Location on Map:
+              </label>
               <div className="relative">
                 <select
                   value={formData.location.mapLocation}
-                  onChange={(e) => updateFormData("location", "mapLocation", e.target.value)}
+                  onChange={(e) =>
+                    updateFormData("location", "mapLocation", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
                 >
                   <option value="">Select location</option>
@@ -524,77 +669,113 @@ export default function CreatePropertyPage() {
                   <option value="Specific Location">Specific Location</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </div>
               </div>
 
               <div className="mt-4 border border-gray-300 rounded-md overflow-hidden">
-                <Image src="/map-placeholder.png" alt="Map" width={600} height={300} className="w-full h-auto" />
+                <Image
+                  src="/map-placeholder.png"
+                  alt="Map"
+                  width={600}
+                  height={300}
+                  className="w-full h-auto"
+                />
               </div>
             </div>
           </div>
-        )
+        );
 
       case 2: // Cost
         return (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rent Price</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Rent Price
+              </label>
               <input
                 type="text"
                 value={formData.cost.rentPrice}
-                onChange={(e) => updateFormData("cost", "rentPrice", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("cost", "rentPrice", e.target.value)
+                }
                 placeholder="$0.00"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Electric</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Electric
+              </label>
               <input
                 type="text"
                 value={formData.cost.electric}
-                onChange={(e) => updateFormData("cost", "electric", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("cost", "electric", e.target.value)
+                }
                 placeholder="$0.00"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Water</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Water
+              </label>
               <input
                 type="text"
                 value={formData.cost.water}
-                onChange={(e) => updateFormData("cost", "water", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("cost", "water", e.target.value)
+                }
                 placeholder="$0.00"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Other</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Other
+              </label>
               <input
                 type="text"
                 value={formData.cost.other}
-                onChange={(e) => updateFormData("cost", "other", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("cost", "other", e.target.value)
+                }
                 placeholder="$0.00"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
-        )
+        );
 
       case 3: // Image and video
         return (
           <div className="space-y-8">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Property Image</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Property Image
+              </label>
               <div className="bg-gray-200 w-64 h-48 rounded-md flex items-center justify-center mb-2">
                 {formData.image.propertyImage ? (
                   <div className="text-center">
-                    <p className="text-sm text-gray-600">{formData.image.propertyImage.name}</p>
+                    <p className="text-sm text-gray-600">
+                      {formData.image.propertyImage.name}
+                    </p>
                   </div>
                 ) : (
                   <svg
@@ -613,24 +794,32 @@ export default function CreatePropertyPage() {
                   </svg>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mb-2">JPG/PNG files with a size less than 500KB</p>
+              <p className="text-xs text-gray-500 mb-2">
+                JPG/PNG files with a size less than 500KB
+              </p>
               <label className="bg-teal-100 hover:bg-teal-200 text-teal-700 px-4 py-2 rounded-md cursor-pointer inline-block">
                 <span>Upload</span>
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleFileChange("image", "propertyImage", e)}
+                  onChange={(e) =>
+                    handleFileChange("image", "propertyImage", e)
+                  }
                   className="hidden"
                 />
               </label>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Neighborhood Image</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Neighborhood Image
+              </label>
               <div className="bg-gray-200 w-64 h-48 rounded-md flex items-center justify-center mb-2">
                 {formData.image.neighborhoodImage ? (
                   <div className="text-center">
-                    <p className="text-sm text-gray-600">{formData.image.neighborhoodImage.name}</p>
+                    <p className="text-sm text-gray-600">
+                      {formData.image.neighborhoodImage.name}
+                    </p>
                   </div>
                 ) : (
                   <svg
@@ -649,77 +838,99 @@ export default function CreatePropertyPage() {
                   </svg>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mb-2">JPG/PNG files with a size less than 500KB</p>
+              <p className="text-xs text-gray-500 mb-2">
+                JPG/PNG files with a size less than 500KB
+              </p>
               <label className="bg-teal-100 hover:bg-teal-200 text-teal-700 px-4 py-2 rounded-md cursor-pointer inline-block">
                 <span>Upload</span>
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleFileChange("image", "neighborhoodImage", e)}
+                  onChange={(e) =>
+                    handleFileChange("image", "neighborhoodImage", e)
+                  }
                   className="hidden"
                 />
               </label>
             </div>
           </div>
-        )
+        );
 
       case 4: // Contacts
         return (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-4">Owner of this property</label>
+              <label className="block text-sm font-medium text-gray-700 mb-4">
+                Owner of this property
+              </label>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Username:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Username:
+              </label>
               <input
                 type="text"
                 value={formData.contacts.ownerName}
-                onChange={(e) => updateFormData("contacts", "ownerName", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("contacts", "ownerName", e.target.value)
+                }
                 placeholder="Name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone:
+              </label>
               <input
                 type="tel"
                 value={formData.contacts.phone}
-                onChange={(e) => updateFormData("contacts", "phone", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("contacts", "phone", e.target.value)
+                }
                 placeholder="Phone Number"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address:
+              </label>
               <input
                 type="email"
                 value={formData.contacts.email}
-                onChange={(e) => updateFormData("contacts", "email", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("contacts", "email", e.target.value)
+                }
                 placeholder="Email"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telegram link:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Telegram link:
+              </label>
               <input
                 type="text"
                 value={formData.contacts.telegram}
-                onChange={(e) => updateFormData("contacts", "telegram", e.target.value)}
+                onChange={(e) =>
+                  updateFormData("contacts", "telegram", e.target.value)
+                }
                 placeholder="Telegram link"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
-        )
+        );
 
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   return (
     <Sidebar>
@@ -770,5 +981,5 @@ export default function CreatePropertyPage() {
         </div>
       </div>
     </Sidebar>
-  )
+  );
 }

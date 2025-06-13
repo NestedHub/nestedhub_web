@@ -1,36 +1,41 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import Sidebar from "@/component/dashoboadpropertyowner/sidebar"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
 
 export default function LogoutPage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleCancel = () => {
-    router.push("/dashboard")
-  }
+    router.push("/dashboard");
+  };
 
   const handleConfirm = () => {
-    setIsLoading(true)
+    setIsLoading(true);
 
     // Clear user data from storage
-    localStorage.removeItem("user")
-    sessionStorage.removeItem("user")
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("user");
 
     // Redirect to login page after a short delay
     setTimeout(() => {
-      router.push("/login")
-    }, 1000)
-  }
+      router.push("/login");
+    }, 1000);
+  };
 
   return (
     <Sidebar>
       <div className="flex flex-col items-center justify-center min-h-[80vh] p-6">
         <div className="mb-4">
-          <Image src="/logogreen.png" alt="NestedHub Logo" width={200} height={60} />
+          <Image
+            src="/logogreen.png"
+            alt="NestedHub Logo"
+            width={200}
+            height={60}
+          />
         </div>
 
         <h1 className="text-2xl font-bold mb-6">Log Out</h1>
@@ -56,5 +61,5 @@ export default function LogoutPage() {
         </div>
       </div>
     </Sidebar>
-  )
+  );
 }

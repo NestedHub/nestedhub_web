@@ -45,19 +45,37 @@ def get_my_reviews(
     return get_user_reviews(session, current_user.user_id)
 
 @router.get(
-    "/property/{property_id}",
+    "/public/property/{property_id}/reviews",
     response_model=List[ReviewResponse],
 )
-def get_reviews_for_property(
+def get_public_reviews_for_property(
     property_id: int,
     session: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user)
 ):
     """
-    Retrieve approved reviews for a property (all reviews for admins or property owners).
+    Get only approved reviews for the public (no auth).
+    """
+    return get_property_reviews(session, property_id, include_all=False)
+
+
+@router.get(
+    "/property/{property_id}/reviews",
+    response_model=List[ReviewResponse],
+)
+def get_all_reviews_for_property(
+    property_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get all reviews for a property (requires admin or owner).
     """
     is_admin = current_user.role in [UserRole.admin, UserRole.property_owner]
-    return get_property_reviews(session, property_id, include_all=is_admin)
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    return get_property_reviews(session, property_id, include_all=True)
+
 
 @router.patch(
     "/{review_id}/status",

@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useParams, useRouter } from "next/navigation"
-import Sidebar from "@/component/dashoboadpropertyowner/sidebar"
+import { useParams, useRouter } from "next/navigation";
+import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
 
 // Mock property data
 const mockPropertyDetail = {
@@ -37,19 +37,19 @@ const mockPropertyDetail = {
     email: "email@example.com",
     telegram: "@telegram-link",
   },
-}
+};
 
 export default function PropertyDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const propertyId = params.id as string
+  const params = useParams();
+  const router = useRouter();
+  const propertyId = params.id as string;
 
   // In a real app, you would fetch the property data based on the ID
-  const property = mockPropertyDetail
+  const property = mockPropertyDetail;
 
   const handleBack = () => {
-    router.back()
-  }
+    router.back();
+  };
 
   return (
     <Sidebar>
@@ -222,7 +222,9 @@ export default function PropertyDetailPage() {
                 <div className="font-medium">email: {property.owner.email}</div>
               </div>
               <div>
-                <div className="font-medium">telegram link: {property.owner.telegram}</div>
+                <div className="font-medium">
+                  telegram link: {property.owner.telegram}
+                </div>
               </div>
             </div>
           </div>
@@ -236,7 +238,9 @@ export default function PropertyDetailPage() {
             Back
           </button>
           <button
-            onClick={() => router.push(`/propertyowner/property/edit/${propertyId}`)}
+            onClick={() =>
+              router.push(`/propertyowner/property/edit/${propertyId}`)
+            }
             className="bg-green-800 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
           >
             Edit
@@ -244,5 +248,5 @@ export default function PropertyDetailPage() {
         </div>
       </div>
     </Sidebar>
-  )
+  );
 }

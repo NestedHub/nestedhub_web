@@ -347,12 +347,13 @@ def init_db(session: Session) -> None:
         )
         session.add(pricing)
 
-    # Initialize Property Media
+    # Initialize Property Media with valid image URLs from Lorem Picsum
     for property in properties:
         for i in range(random.randint(3, 6)):
+            seed = f"{property.property_id}_{i}"
             media = PropertyMedia(
                 property_id=property.property_id,
-                media_url=f"https://example.com/property_images/{property.property_id}_{i}.jpg",
+                media_url=f"https://picsum.photos/seed/{seed}/400/250",  # You can adjust the size if needed
                 media_type=MediaType.image,
             )
             session.add(media)

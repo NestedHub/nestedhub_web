@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
@@ -76,7 +76,9 @@ export default function UserDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Name</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Name
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-500">{user.name}</span>
@@ -100,7 +102,9 @@ export default function UserDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Email</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Email
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-500">{user.email}</span>
@@ -151,5 +155,5 @@ export default function UserDetailPage() {
         </div>
       </div>
     </AdminSidebar>
-  )
+  );
 }

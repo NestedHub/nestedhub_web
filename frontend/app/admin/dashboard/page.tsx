@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useEffect, useState, useCallback } from 'react';
 import { Users, Home, User } from "lucide-react"
@@ -123,5 +123,6 @@ export default function AdminDashboardPage() {
         </div>
       </div>
     </AdminSidebar>
+  );
   );
 }

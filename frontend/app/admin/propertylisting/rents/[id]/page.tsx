@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useParams } from "next/navigation"
-import AdminSidebar from "@/component/admin/sidebar"
-import BackButton from "@/component/ui/backbutton"
+import { useParams } from "next/navigation";
+import AdminSidebar from "@/components/admin/sidebar";
+import BackButton from "@/components/ui/backbutton";
 // Mock data for a rental property
 const mockPropertyDetail = {
   id: "01",
@@ -37,14 +37,14 @@ const mockPropertyDetail = {
     email: "email@example.com",
     telegram: "@telegram-link",
   },
-}
+};
 
 export default function RentalPropertyDetailPage() {
-  const params = useParams()
-  const propertyId = params.id as string
+  const params = useParams();
+  const propertyId = params.id as string;
 
   // In a real app, you would fetch the property data based on the ID
-  const property = mockPropertyDetail
+  const property = mockPropertyDetail;
 
   return (
     <AdminSidebar>
@@ -203,13 +203,19 @@ export default function RentalPropertyDetailPage() {
                   <div className="font-medium">Name: {property.owner.name}</div>
                 </div>
                 <div>
-                  <div className="font-medium">phone: {property.owner.phone}</div>
+                  <div className="font-medium">
+                    phone: {property.owner.phone}
+                  </div>
                 </div>
                 <div>
-                  <div className="font-medium">email: {property.owner.email}</div>
+                  <div className="font-medium">
+                    email: {property.owner.email}
+                  </div>
                 </div>
                 <div>
-                  <div className="font-medium">telegram link: {property.owner.telegram}</div>
+                  <div className="font-medium">
+                    telegram link: {property.owner.telegram}
+                  </div>
                 </div>
               </div>
             </div>
@@ -217,5 +223,5 @@ export default function RentalPropertyDetailPage() {
         </div>
       </div>
     </AdminSidebar>
-  )
+  );
 }

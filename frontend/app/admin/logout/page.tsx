@@ -1,23 +1,23 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import AdminSidebar from "@/component/admin/sidebar"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import AdminSidebar from "@/components/admin/sidebar";
 
 export default function AdminLogoutPage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleCancel = () => {
-    router.push("/admin/dashboard")
-  }
+    router.push("/admin/dashboard");
+  };
 
   const handleConfirm = () => {
-    setIsLoading(true)
+    setIsLoading(true);
 
     // Clear admin data from storage
-    localStorage.removeItem("admin")
+    localStorage.removeItem("admin");
 
     // Redirect to admin login page after a short delay
     setTimeout(() => {
@@ -29,7 +29,12 @@ export default function AdminLogoutPage() {
     <AdminSidebar>
       <div className="flex flex-col items-center justify-center min-h-[80vh] p-6">
         <div className="mb-4">
-          <Image src="/logogreen.png" alt="NestedHub Logo" width={200} height={60} />
+          <Image
+            src="/logogreen.png"
+            alt="NestedHub Logo"
+            width={200}
+            height={60}
+          />
         </div>
 
         <h1 className="text-2xl font-bold mb-6">Log Out</h1>
@@ -55,5 +60,5 @@ export default function AdminLogoutPage() {
         </div>
       </div>
     </AdminSidebar>
-  )
+  );
 }

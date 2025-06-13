@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -62,8 +62,8 @@ export default function RentalPropertiesPage() {
   )
 
   const handleEdit = (id: string) => {
-    router.push(`/admin/property-listing/rent/edit/${id}`)
-  }
+    router.push(`/admin/property-listing/rent/edit/${id}`);
+  };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this property?")) {
@@ -226,5 +226,5 @@ export default function RentalPropertiesPage() {
         <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
     </AdminSidebar>
-  )
+  );
 }

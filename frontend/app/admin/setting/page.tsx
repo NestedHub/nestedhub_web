@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import AdminSidebar from "@/component/admin/sidebar"
+import { useState } from "react";
+import AdminSidebar from "@/components/admin/sidebar";
 
 export default function AdminSettingPage() {
-  const [selectedCurrency, setSelectedCurrency] = useState("$")
-  const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
+  const [selectedCurrency, setSelectedCurrency] = useState("$");
+  const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
 
   const handleCurrencyChange = (currency: string) => {
-    setSelectedCurrency(currency)
-    setCurrencyDropdownOpen(false)
-  }
+    setSelectedCurrency(currency);
+    setCurrencyDropdownOpen(false);
+  };
 
   const handleSaveChanges = () => {
-    console.log("Currency saved:", selectedCurrency)
+    console.log("Currency saved:", selectedCurrency);
     // In a real app, you would call an API to save the settings
-  }
+  };
 
   return (
     <AdminSidebar>
@@ -23,10 +23,14 @@ export default function AdminSettingPage() {
         <h1 className="text-2xl font-bold mb-6">Setting</h1>
 
         <div className="mb-8">
-          <h2 className="text-sm font-medium text-gray-700 mb-4">Information about</h2>
+          <h2 className="text-sm font-medium text-gray-700 mb-4">
+            Information about
+          </h2>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Currency
+            </label>
             <div className="relative">
               <button
                 onClick={() => setCurrencyDropdownOpen(!currencyDropdownOpen)}
@@ -34,7 +38,9 @@ export default function AdminSettingPage() {
               >
                 <span>Select Currency: {selectedCurrency}</span>
                 <svg
-                  className={`h-5 w-5 text-gray-400 transition-transform ${currencyDropdownOpen ? "rotate-180" : ""}`}
+                  className={`h-5 w-5 text-gray-400 transition-transform ${
+                    currencyDropdownOpen ? "rotate-180" : ""
+                  }`}
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 20 20"
                   fill="currentColor"
@@ -49,7 +55,9 @@ export default function AdminSettingPage() {
 
               {currencyDropdownOpen && (
                 <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200">
-                  <div className="py-1 text-center text-sm text-gray-700">Select</div>
+                  <div className="py-1 text-center text-sm text-gray-700">
+                    Select
+                  </div>
                   <button
                     onClick={() => handleCurrencyChange("$")}
                     className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
@@ -76,5 +84,5 @@ export default function AdminSettingPage() {
         </div>
       </div>
     </AdminSidebar>
-  )
+  );
 }
