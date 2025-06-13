@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Search, Eye } from "lucide-react"
-import AdminSidebar from "@/component/admin/sidebar"
-import Pagination from "@/component/admin/pagination"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Eye } from "lucide-react";
+import AdminSidebar from "@/components/admin/sidebar";
+import Pagination from "@/components/admin/pagination";
 
 // Mock data for property requests
 const mockPropertyRequests = [
@@ -57,33 +57,33 @@ const mockPropertyRequests = [
     status: "For rent",
     dateList: "04 Sep 2024",
   },
-]
+];
 
 export default function PropertyRequestPage() {
-  const router = useRouter()
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("")
+  const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Filter property requests based on search term
   const filteredRequests = mockPropertyRequests.filter(
     (request) =>
       request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.type.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      request.type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleAccept = (id: string) => {
-    console.log(`Accepted property request with ID: ${id}`)
+    console.log(`Accepted property request with ID: ${id}`);
     // In a real app, you would call an API to accept the request
-  }
+  };
 
   const handleReject = (id: string) => {
-    console.log(`Rejected property request with ID: ${id}`)
+    console.log(`Rejected property request with ID: ${id}`);
     // In a real app, you would call an API to reject the request
-  }
+  };
 
   const handleView = (id: string) => {
-    router.push(`/admin/property-listing/property-request/${id}`)
-  }
+    router.push(`/admin/property-listing/property-request/${id}`);
+  };
 
   return (
     <AdminSidebar>
@@ -148,15 +148,23 @@ export default function PropertyRequestPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredRequests.map((request) => (
                 <tr key={request.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.type}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {request.title}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.type}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                       {request.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.dateList}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.dateList}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
@@ -186,8 +194,12 @@ export default function PropertyRequestPage() {
           </table>
         </div>
 
-        <Pagination currentPage={currentPage} totalPages={5} onPageChange={setCurrentPage} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={5}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </AdminSidebar>
-  )
+  );
 }

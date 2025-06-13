@@ -1,51 +1,51 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import Image from "next/image"
-import Sidebar from "@/component/dashoboadpropertyowner/sidebar"
+import { useState } from "react";
+import Image from "next/image";
+import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
 
 export default function SettingsPage() {
   const [userInfo, setUserInfo] = useState({
     fullName: "Song Lyne",
     email: "songlyne@gmail.com",
     phone: "+855123456789",
-  })
+  });
 
   const [passwordInfo, setPasswordInfo] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-  })
+  });
 
   const handleUserInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setUserInfo((prev) => ({
       ...prev,
       [name]: value,
-    }))
-  }
+    }));
+  };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setPasswordInfo((prev) => ({
       ...prev,
       [name]: value,
-    }))
-  }
+    }));
+  };
 
   const handleUserInfoSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("User info updated:", userInfo)
+    e.preventDefault();
+    console.log("User info updated:", userInfo);
     // Handle user info update logic
-  }
+  };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("Password updated:", passwordInfo)
+    e.preventDefault();
+    console.log("Password updated:", passwordInfo);
     // Handle password update logic
-  }
+  };
 
   return (
     <Sidebar>
@@ -110,7 +110,10 @@ export default function SettingsPage() {
                   >
                     Save changes
                   </button>
-                  <button type="button" className="ml-4 text-sm text-blue-600 hover:underline">
+                  <button
+                    type="button"
+                    className="ml-4 text-sm text-blue-600 hover:underline"
+                  >
                     Forgot your password?
                   </button>
                 </div>
@@ -168,5 +171,5 @@ export default function SettingsPage() {
         </div>
       </div>
     </Sidebar>
-  )
+  );
 }

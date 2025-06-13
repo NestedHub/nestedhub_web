@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Search, Eye } from "lucide-react"
-import AdminSidebar from "@/component/admin/sidebar"
-import Pagination from "@/component/admin/pagination"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Eye } from "lucide-react";
+import AdminSidebar from "@/components/admin/sidebar";
+import Pagination from "@/components/admin/pagination";
 
 // Mock data for property owners
 const mockPropertyOwners = [
@@ -44,23 +44,23 @@ const mockPropertyOwners = [
     phone: "0987654321",
     email: "lyne@gmail.com",
   },
-]
+];
 
 export default function PropertyOwnerPage() {
-  const router = useRouter()
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("")
+  const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Filter property owners based on search term
   const filteredPropertyOwners = mockPropertyOwners.filter(
     (owner) =>
       owner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      owner.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      owner.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleView = (id: string) => {
-    router.push(`/admin/usermanagement/propertyowner/${id}`)
-  }
+    router.push(`/admin/usermanagement/propertyowner/${id}`);
+  };
 
   return (
     <AdminSidebar>
@@ -119,10 +119,18 @@ export default function PropertyOwnerPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredPropertyOwners.map((owner) => (
                 <tr key={owner.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{owner.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{owner.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{owner.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{owner.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {owner.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {owner.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {owner.phone}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {owner.email}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
@@ -140,8 +148,12 @@ export default function PropertyOwnerPage() {
           </table>
         </div>
 
-        <Pagination currentPage={currentPage} totalPages={5} onPageChange={setCurrentPage} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={5}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </AdminSidebar>
-  )
+  );
 }

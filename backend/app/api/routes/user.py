@@ -12,7 +12,7 @@ from app.crud.crud_user import (
 )
 from app.models.models import User, UserRole
 from app.api.deps import get_db_session, get_current_user, require_admin, get_current_user_optional
-from app.models.user_schemas import UserRole, UserCreate, UserResponse, TokenResponse, PasswordResetRequest, PasswordResetConfirm, TokenRevoke, UserUpdate
+from app.models.user_schemas import UserRole, UserCreate, UserResponse, TokenResponse, PasswordResetRequest, PasswordResetConfirm, TokenRevoke, UserUpdate, PublicUserResponse
 from app.core.config import settings
 import httpx
 import urllib.parse
@@ -293,14 +293,13 @@ def get_user(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get user by ID. Restricted to admins or the user themselves.
     Admins can see id_card_url for property owners.
     """
-    if current_user.role != UserRole.admin and current_user.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this user's information"
-        )
+    # if current_user.role != UserRole.admin and current_user.user_id != user_id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not authorized to access this user's information"
+    #     )
     user = get_user_by_id(session=session, user_id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -316,6 +315,18 @@ def get_user(
         is_approved=user.is_approved,
         is_active=user.is_active
     )
+
+@router.get("/public/{user_id}", response_model=PublicUserResponse)
+def get_public_user(
+    user_id: int,
+    session: Session = Depends(get_db_session)
+):
+    user = get_user_by_id(session=session, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return PublicUserResponse.from_orm(user)
+
 
 
 @router.patch("/{user_id}/approve", response_model=UserResponse)

@@ -1,190 +1,254 @@
-"use client"
+// component/user/UserHomePage.tsx
+"use client";
+import { Home, Building, DoorOpen } from "lucide-react";
+import Header from "@/component/user/header";
+import Footer from "@/component/user/footer";
+import FilterSection from "@/component/user/FilterSection";
+import HeroSection from "@/component/user/HeroSection";
+import PropertySection from "@/component/property/propertySection";
+import { usePropertyFilters } from "@/lib/hooks/usePropertyFilters";
+import { usePropertyData } from "@/lib/hooks/usePropertyData";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useEffect } from "react"; // Import useState, useEffect
+import { getUserWishlist } from "@/lib/utils/wishlist-api"; // Import wishlist API
+import { WishListResponse } from "@/lib/types"; // Assuming you have this type
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
-import { Search, SlidersHorizontal, ChevronDown } from "lucide-react"
-import Header from "@/component/user/header"
-import Footer from "@/component/user/footer"
-import PropertySection from "@/component/property/propertySection"
-import { getNewListings, getPropertiesByType } from "@/lib/mockData/properties"
-import type { Property } from "@/lib/mockData/properties"
-
-// Define the property type expected by PropertySection
-interface PropertyWithImage {
-  id: string
-  title: string
-  type: string
-  price: string
-  location: string
-  bedrooms: number
-  bathrooms: number
-  image: string // Required image field
-}
 
 export default function UserHomePage() {
-  const [newListings, setNewListings] = useState<PropertyWithImage[]>([])
-  const [apartments, setApartments] = useState<PropertyWithImage[]>([])
-  const [condos, setCondos] = useState<PropertyWithImage[]>([])
-  const [dorms, setDorms] = useState<PropertyWithImage[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter();
+  const {
+    filters,
+    searchQuery,
+    setSearchQuery,
+    dropdownStates,
+    toggleDropdown,
+    handleFilterChange,
+    handleSortChange,
+    clearFilters,
+    getSelectedLocationText,
+    getSelectedPropertyCategoryText,
+    getSelectedSortText,
+    cities,
+    districts,
+    communes,
+    propertyCategories,
+  } = usePropertyFilters();
 
-  // Helper function to convert Property to PropertyWithImage
-  const mapPropertyToPropertyWithImage = (property: Property): PropertyWithImage => {
-    // Find the primary image or use the first image or a default
-    let imageUrl = "/property.png" // Default fallback image
+  // State for user's wishlist
+  const [userWishlist, setUserWishlist] = useState<WishListResponse[]>([]);
+  const [loadingWishlist, setLoadingWishlist] = useState(true);
 
-    if (property.images && property.images.length > 0) {
-      // Try to find primary image first
-      const primaryImage = property.images.find((img) => img.isPrimary)
-      if (primaryImage && primaryImage.url) {
-        imageUrl = primaryImage.url
-      } else if (property.images[0].url) {
-        // Otherwise use the first image
-        imageUrl = property.images[0].url
-      }
-    }
-
-    return {
-      id: property.id,
-      title: property.title,
-      type: property.type,
-      price: property.price,
-      location: property.location,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      image: imageUrl,
-    }
-  }
-
+  // Fetch user wishlist on component mount
   useEffect(() => {
-    const fetchProperties = async () => {
-      setIsLoading(true)
+    const fetchUserWishlist = async () => {
+      setLoadingWishlist(true);
       try {
-        // Fetch properties for each section
-        const newListingsData = await getNewListings(6)
-        const apartmentsData = await getPropertiesByType("Apartment", 6)
-        const condosData = await getPropertiesByType("Condo", 6)
-        const dormsData = await getPropertiesByType("Dorm", 6)
-
-        // Map the properties to include a required image field
-        setNewListings(newListingsData.map(mapPropertyToPropertyWithImage))
-        setApartments(apartmentsData.map(mapPropertyToPropertyWithImage))
-        setCondos(condosData.map(mapPropertyToPropertyWithImage))
-        setDorms(dormsData.map(mapPropertyToPropertyWithImage))
+        const wishlist = await getUserWishlist();
+        if (wishlist) {
+          setUserWishlist(wishlist);
+        }
       } catch (error) {
-        console.error("Error fetching properties:", error)
+        console.error("Failed to fetch user wishlist:", error);
       } finally {
-        setIsLoading(false)
+        setLoadingWishlist(false);
       }
-    }
+    };
+    fetchUserWishlist();
+  }, []);
 
-    fetchProperties()
-  }, [])
+  // Update wishlist state when a property's wishlist status changes
+  const handleWishlistChange = (propertyId: string, isWishlisted: boolean) => {
+    setUserWishlist((prevWishlist) => {
+      const propertyIdNum = parseInt(propertyId);
+      if (isWishlisted) {
+        // Add to wishlist if not already there
+        if (!prevWishlist.some(item => item.property_id === propertyIdNum)) {
+          // You may need to adjust user_id and added_at as appropriate for your app
+          return [
+            ...prevWishlist,
+            {
+              id: Date.now(), // Temporary ID, replace with real one if needed
+              property_id: propertyIdNum,
+              user_id: 0, // Replace with actual user_id if available
+              added_at: new Date().toISOString(),
+            } as WishListResponse,
+          ];
+        }
+      } else {
+        // Remove from wishlist
+        return prevWishlist.filter((item) => item.property_id !== propertyIdNum);
+      }
+      return prevWishlist; // No change needed
+    });
+  };
+
+  // Helper to get category ID from its name
+  const getCategoryIdByName = (name: string) => {
+    const category = propertyCategories.find(cat => cat.name.toLowerCase() === name.toLowerCase());
+    if (!propertyCategories || propertyCategories.length === 0) {
+        return undefined;
+    }
+    return category?.id ? String(category.id) : undefined;
+  };
+
+  const memoizedCategoryIds = useMemo(() => {
+    return {
+      houseId: getCategoryIdByName("house"),
+      apartmentId: getCategoryIdByName("apartment"),
+      roomId: getCategoryIdByName("room"),
+    };
+  }, [propertyCategories]);
+
+  const { houseId, apartmentId, roomId } = memoizedCategoryIds;
+
+  // --- Fetching data for each section separately using usePropertyData ---
+
+  const {
+    properties: newListings,
+    isLoading: isLoadingNewListings,
+    error: errorNewListings,
+  } = usePropertyData("", { sort_by: "listed_at", sort_order: "desc" }, 0, 6, false);
+
+  const {
+    properties: houses,
+    isLoading: isLoadingHouses,
+    error: errorHouses,
+  } = usePropertyData(
+    "",
+    { category_id: houseId },
+    0,
+    3,
+    !houseId
+  );
+
+  const {
+    properties: apartments,
+    isLoading: isLoadingApartments,
+    error: errorApartments,
+  } = usePropertyData(
+    "",
+    { category_id: apartmentId },
+    0,
+    3,
+    !apartmentId
+  );
+
+  const {
+    properties: rooms,
+    isLoading: isLoadingRooms,
+    error: errorRooms,
+  } = usePropertyData(
+    "",
+    { category_id: roomId },
+    0,
+    3,
+    !roomId
+  );
+
+
+  const overallIsLoading = isLoadingNewListings || isLoadingHouses || isLoadingApartments || isLoadingRooms || loadingWishlist; // Include loadingWishlist
+  const overallError = errorNewListings || errorHouses || errorApartments || errorRooms;
+
+  const handleSearch = () => {
+    const queryParams = new URLSearchParams({
+      keyword: searchQuery || "",
+      ...(filters.city_id && { city_id: filters.city_id }),
+      ...(filters.district_id && { district_id: filters.district_id }),
+      ...(filters.commune_id && { commune_id: filters.commune_id }),
+      ...(filters.category_id && { category_id: filters.category_id }),
+      ...(filters.sort_by && { sort_by: filters.sort_by }),
+      ...(filters.sort_order && { sort_order: filters.sort_order }),
+    }).toString();
+    router.push(`/user/rent?${queryParams}`);
+  };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       <Header userType="user" />
-
-      {/* Hero Section */}
-      <div className="container mx-auto px-4 py-8">
-        {/* Search and Filter Section */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <button className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-md bg-white">
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="text-sm">Filter By</span>
-              </button>
-
-              <div className="relative">
-                <button className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-md bg-white">
-                  <span className="text-sm">Location</span>
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="relative">
-                <button className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-md bg-white">
-                  <span className="text-sm">Property type</span>
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative">
-            <button className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-md bg-white">
-              <span className="text-sm">Price Sort</span>
-              <ChevronDown className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Hero Content */}
-        <div className="flex flex-col md:flex-row items-center justify-between">
-          <div className="md:w-1/2 mb-6 md:mb-0">
-            <h1 className="text-4xl font-bold text-green-800 leading-tight">
-              Let us help you
-              <br />
-              find the perfect
-              <br />
-              property today.
-            </h1>
-          </div>
-          <div className="md:w-1/2">
-            <Image
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-Q9cJFIDOa8MQNzZkw3gti1nVkvmcon.png"
-              alt="Modern Property"
-              width={600}
-              height={400}
-              className="rounded-md"
-            />
-          </div>
-        </div>
+      <div className="container mx-auto px-4 py-12">
+        <FilterSection
+          filters={filters}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          dropdownStates={dropdownStates}
+          toggleDropdown={toggleDropdown}
+          handleFilterChange={handleFilterChange}
+          handleSortChange={handleSortChange}
+          clearFilters={clearFilters}
+          getSelectedLocationText={() => getSelectedLocationText() ?? ""}
+          getSelectedPropertyCategoryText={() =>
+            getSelectedPropertyCategoryText() ?? ""
+          }
+          getSelectedSortText={getSelectedSortText}
+          cities={cities}
+          districts={districts}
+          communes={communes}
+          propertyCategories={propertyCategories}
+          onSearch={handleSearch}
+        />
+        <HeroSection />
       </div>
 
-      {/* Property Listings Sections */}
-      {isLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+      {overallIsLoading ? (
+        <div className="flex flex-col justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-500 mb-4" />
+          <p className="text-gray-600 text-lg">Loading amazing properties...</p>
+        </div>
+      ) : overallError ? (
+        <div className="flex flex-col justify-center items-center py-20">
+          <p className="text-red-600 text-lg">
+            Error loading properties: {overallError}. Please try again.
+          </p>
         </div>
       ) : (
-        <div className="container mx-auto px-4">
-          <PropertySection
-            title="New Listings"
-            properties={newListings}
-            viewAllLink="/user/properties?filter=new"
-            maxItems={3}
-          />
-          <PropertySection
-            title="Apartments"
-            properties={apartments}
-            viewAllLink="/user/properties?filter=apartment"
-            maxItems={3}
-          />
-          <PropertySection
-            title="Condos"
-            properties={condos}
-            viewAllLink="/user/properties?filter=condo"
-            maxItems={3}
-          />
-          <PropertySection title="Dorms" properties={dorms} viewAllLink="/user/properties?filter=dorm" maxItems={3} />
+        <div className="bg-white">
+          <div className="container mx-auto px-4 py-16">
+            <PropertySection
+              title="New Listings"
+              properties={newListings}
+              viewAllLink="/user/properties?sort_by=listed_at&sort_order=desc"
+              maxItems={3}
+              icon={<span className="text-2xl">🆕</span>}
+              userWishlist={userWishlist} // Pass userWishlist to PropertySection
+              onWishlistChange={handleWishlistChange} // Pass callback
+            />
+            {houseId && (
+              <PropertySection
+                title="Houses"
+                properties={houses}
+                viewAllLink={`/user/properties?category_id=${houseId}`}
+                maxItems={3}
+                icon={<Home className="h-6 w-6" />}
+                userWishlist={userWishlist} // Pass userWishlist
+                onWishlistChange={handleWishlistChange} // Pass callback
+              />
+            )}
+            {apartmentId && (
+              <PropertySection
+                title="Apartments"
+                properties={apartments}
+                viewAllLink={`/user/properties?category_id=${apartmentId}`}
+                maxItems={3}
+                icon={<Building className="h-6 w-6" />}
+                userWishlist={userWishlist} // Pass userWishlist
+                onWishlistChange={handleWishlistChange} // Pass callback
+              />
+            )}
+            {roomId && (
+              <PropertySection
+                title="Rooms"
+                properties={rooms}
+                viewAllLink={`/user/properties?category_id=${roomId}`}
+                maxItems={3}
+                icon={<DoorOpen className="h-6 w-6" />}
+                userWishlist={userWishlist} // Pass userWishlist
+                onWishlistChange={handleWishlistChange} // Pass callback
+              />
+            )}
+          </div>
         </div>
       )}
-
       <Footer userType="user" />
     </div>
-  )
+  );
 }

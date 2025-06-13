@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useParams, useRouter } from "next/navigation"
-import { useState } from "react"
-import Sidebar from "@/component/dashoboadpropertyowner/sidebar"
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
 
 // Mock property data
 const mockPropertyDetail = {
@@ -40,26 +40,26 @@ const mockPropertyDetail = {
     email: "email@example.com",
     telegram: "@telegram-link",
   },
-}
+};
 
 export default function EditPropertyPage() {
-  const params = useParams()
-  const router = useRouter()
-  const propertyId = params.id as string
+  const params = useParams();
+  const router = useRouter();
+  const propertyId = params.id as string;
 
   // In a real app, you would fetch the property data based on the ID
-  const [property, setProperty] = useState(mockPropertyDetail)
+  const [property, setProperty] = useState(mockPropertyDetail);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     // In a real app, you would call an API to update the property
-    alert("Property updated successfully!")
-    router.push(`/propertyowner/property/${propertyId}`)
-  }
+    alert("Property updated successfully!");
+    router.push(`/propertyowner/property/${propertyId}`);
+  };
 
   const handleBack = () => {
-    router.back()
-  }
+    router.back();
+  };
 
   return (
     <Sidebar>
@@ -106,7 +106,9 @@ export default function EditPropertyPage() {
               <input
                 type="text"
                 value={property.title}
-                onChange={(e) => setProperty({ ...property, title: e.target.value })}
+                onChange={(e) =>
+                  setProperty({ ...property, title: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
@@ -115,7 +117,9 @@ export default function EditPropertyPage() {
               <input
                 type="text"
                 value={property.description}
-                onChange={(e) => setProperty({ ...property, description: e.target.value })}
+                onChange={(e) =>
+                  setProperty({ ...property, description: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
@@ -130,7 +134,9 @@ export default function EditPropertyPage() {
                   <input
                     type="text"
                     value={property.type}
-                    onChange={(e) => setProperty({ ...property, type: e.target.value })}
+                    onChange={(e) =>
+                      setProperty({ ...property, type: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
@@ -139,7 +145,12 @@ export default function EditPropertyPage() {
                   <input
                     type="number"
                     value={property.bedrooms}
-                    onChange={(e) => setProperty({ ...property, bedrooms: Number.parseInt(e.target.value) })}
+                    onChange={(e) =>
+                      setProperty({
+                        ...property,
+                        bedrooms: Number.parseInt(e.target.value),
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
@@ -148,7 +159,12 @@ export default function EditPropertyPage() {
                   <input
                     type="number"
                     value={property.bathrooms}
-                    onChange={(e) => setProperty({ ...property, bathrooms: Number.parseInt(e.target.value) })}
+                    onChange={(e) =>
+                      setProperty({
+                        ...property,
+                        bathrooms: Number.parseInt(e.target.value),
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
@@ -165,7 +181,12 @@ export default function EditPropertyPage() {
                   <input
                     type="text"
                     value={property.availableFrom}
-                    onChange={(e) => setProperty({ ...property, availableFrom: e.target.value })}
+                    onChange={(e) =>
+                      setProperty({
+                        ...property,
+                        availableFrom: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
@@ -174,7 +195,9 @@ export default function EditPropertyPage() {
                   <input
                     type="text"
                     value={property.location}
-                    onChange={(e) => setProperty({ ...property, location: e.target.value })}
+                    onChange={(e) =>
+                      setProperty({ ...property, location: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
@@ -193,7 +216,10 @@ export default function EditPropertyPage() {
                     onChange={(e) =>
                       setProperty({
                         ...property,
-                        facilities: { ...property.facilities, airConditioning: e.target.value },
+                        facilities: {
+                          ...property.facilities,
+                          airConditioning: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -209,7 +235,10 @@ export default function EditPropertyPage() {
                     onChange={(e) =>
                       setProperty({
                         ...property,
-                        facilities: { ...property.facilities, guard: e.target.value },
+                        facilities: {
+                          ...property.facilities,
+                          guard: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -225,7 +254,10 @@ export default function EditPropertyPage() {
                     onChange={(e) =>
                       setProperty({
                         ...property,
-                        facilities: { ...property.facilities, parking: e.target.value },
+                        facilities: {
+                          ...property.facilities,
+                          parking: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -241,7 +273,10 @@ export default function EditPropertyPage() {
                     onChange={(e) =>
                       setProperty({
                         ...property,
-                        facilities: { ...property.facilities, internet: e.target.value },
+                        facilities: {
+                          ...property.facilities,
+                          internet: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -329,7 +364,10 @@ export default function EditPropertyPage() {
                     onChange={(e) =>
                       setProperty({
                         ...property,
-                        forRent: { ...property.forRent, maleStudent: e.target.value },
+                        forRent: {
+                          ...property.forRent,
+                          maleStudent: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -345,7 +383,10 @@ export default function EditPropertyPage() {
                     onChange={(e) =>
                       setProperty({
                         ...property,
-                        forRent: { ...property.forRent, femaleStudent: e.target.value },
+                        forRent: {
+                          ...property.forRent,
+                          femaleStudent: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -361,7 +402,10 @@ export default function EditPropertyPage() {
                     onChange={(e) =>
                       setProperty({
                         ...property,
-                        forRent: { ...property.forRent, manJob: e.target.value },
+                        forRent: {
+                          ...property.forRent,
+                          manJob: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -377,7 +421,10 @@ export default function EditPropertyPage() {
                     onChange={(e) =>
                       setProperty({
                         ...property,
-                        forRent: { ...property.forRent, womanJob: e.target.value },
+                        forRent: {
+                          ...property.forRent,
+                          womanJob: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -472,5 +519,5 @@ export default function EditPropertyPage() {
         </form>
       </div>
     </Sidebar>
-  )
+  );
 }

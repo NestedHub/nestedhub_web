@@ -1,22 +1,22 @@
-"use client"
+"use client";
 
-import { useParams } from "next/navigation"
-import Image from "next/image"
-import AdminSidebar from "@/component/admin/sidebar"
-import BackButton from "@/component/ui/backbutton"
+import { useParams } from "next/navigation";
+import Image from "next/image";
+import AdminSidebar from "@/components/admin/sidebar";
+import BackButton from "@/components/ui/backbutton";
 
 // Mock data for a user
 const mockUserDetail = {
   name: "Song Lyna",
   email: "song@gmail.com",
   phone: "0987654321",
-}
+};
 
 export default function UserDetailPage() {
-  const params = useParams()
-  const userId = params.id as string
+  const params = useParams();
+  const userId = params.id as string;
 
-  const user = mockUserDetail
+  const user = mockUserDetail;
 
   return (
     <AdminSidebar>
@@ -31,7 +31,9 @@ export default function UserDetailPage() {
             <tbody className="divide-y divide-gray-200">
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50 w-1/4">
-                  <span className="text-sm font-medium text-gray-900">Title</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Title
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-500">Detail</span>
@@ -39,7 +41,9 @@ export default function UserDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Name</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Name
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-500">{user.name}</span>
@@ -47,7 +51,9 @@ export default function UserDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Profile</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Profile
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="h-20 w-20 rounded-full overflow-hidden">
@@ -63,7 +69,9 @@ export default function UserDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Email</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Email
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-500">{user.email}</span>
@@ -71,7 +79,9 @@ export default function UserDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Phone</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Phone
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-500">{user.phone}</span>
@@ -82,5 +92,5 @@ export default function UserDetailPage() {
         </div>
       </div>
     </AdminSidebar>
-  )
+  );
 }

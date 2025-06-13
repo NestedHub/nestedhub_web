@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { useParams } from "next/navigation"
-import Image from "next/image"
-import AdminSidebar from "@/component/admin/sidebar"
-import BackButton from "@/component/ui/backbutton"
+import { useParams } from "next/navigation";
+import Image from "next/image";
+import AdminSidebar from "@/components/admin/sidebar";
+import BackButton from "@/components/ui/backbutton";
 
 // Mock data for a property owner request
 const mockPropertyOwnerDetail = {
@@ -12,14 +12,14 @@ const mockPropertyOwnerDetail = {
   phone: "0987654321",
   telegram: "None",
   idCard: "/placeholder.svg?height=200&width=300",
-}
+};
 
 export default function PropertyOwnerRequestDetailPage() {
-  const params = useParams()
-  const requestId = params.id as string
+  const params = useParams();
+  const requestId = params.id as string;
 
   // In a real app, you would fetch the property owner request data based on the ID
-  const propertyOwner = mockPropertyOwnerDetail
+  const propertyOwner = mockPropertyOwnerDetail;
 
   return (
     <AdminSidebar>
@@ -34,7 +34,9 @@ export default function PropertyOwnerRequestDetailPage() {
             <tbody className="divide-y divide-gray-200">
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50 w-1/4">
-                  <span className="text-sm font-medium text-gray-900">Title</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Title
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-500">Detail</span>
@@ -42,15 +44,21 @@ export default function PropertyOwnerRequestDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Name</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Name
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.name}</span>
+                  <span className="text-sm text-gray-500">
+                    {propertyOwner.name}
+                  </span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Profile</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Profile
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="h-20 w-20 rounded-full overflow-hidden">
@@ -66,31 +74,45 @@ export default function PropertyOwnerRequestDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Email</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Email
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.email}</span>
+                  <span className="text-sm text-gray-500">
+                    {propertyOwner.email}
+                  </span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Phone</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Phone
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.phone}</span>
+                  <span className="text-sm text-gray-500">
+                    {propertyOwner.phone}
+                  </span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Telegram</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Telegram
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.telegram}</span>
+                  <span className="text-sm text-gray-500">
+                    {propertyOwner.telegram}
+                  </span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">ID Card</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    ID Card
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="h-40 w-64 bg-gray-200 rounded-md flex items-center justify-center">
@@ -116,5 +138,5 @@ export default function PropertyOwnerRequestDetailPage() {
         </div>
       </div>
     </AdminSidebar>
-  )
+  );
 }

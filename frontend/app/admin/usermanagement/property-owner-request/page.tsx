@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Search, Eye } from "lucide-react"
-import AdminSidebar from "@/component/admin/sidebar"
-import Pagination from "@/component/admin/pagination"
+import { useState } from "react";
+import { Search, Eye } from "lucide-react";
+import AdminSidebar from "@/components/admin/sidebar";
+import Pagination from "@/components/admin/pagination";
 
 // Mock data for property owner requests
 const mockRequests = [
@@ -42,34 +42,34 @@ const mockRequests = [
     email: "song@gmail.com",
     telegram: "None",
   },
-]
+];
 
 export default function PropertyOwnerRequestPage() {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Filter requests based on search term
   const filteredRequests = mockRequests.filter(
     (request) =>
       request.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      request.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleAccept = (id: string) => {
-    console.log(`Accepted request with ID: ${id}`)
+    console.log(`Accepted request with ID: ${id}`);
     // In a real app, you would call an API to accept the request
-  }
+  };
 
   const handleReject = (id: string) => {
-    console.log(`Rejected request with ID: ${id}`)
+    console.log(`Rejected request with ID: ${id}`);
     // In a real app, you would call an API to reject the request
-  }
+  };
 
   const handleView = (id: string) => {
-    console.log(`Viewing request with ID: ${id}`)
+    console.log(`Viewing request with ID: ${id}`);
     // In a real app, you would navigate to the detail page
-    window.location.href = `/admin/user-management/property-owner-request/${id}`
-  }
+    window.location.href = `/admin/user-management/property-owner-request/${id}`;
+  };
 
   return (
     <AdminSidebar>
@@ -134,11 +134,21 @@ export default function PropertyOwnerRequestPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredRequests.map((request) => (
                 <tr key={request.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.telegram}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {request.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.phone}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.email}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.telegram}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
@@ -168,8 +178,12 @@ export default function PropertyOwnerRequestPage() {
           </table>
         </div>
 
-        <Pagination currentPage={currentPage} totalPages={5} onPageChange={setCurrentPage} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={5}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </AdminSidebar>
-  )
+  );
 }

@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Search, Eye, Trash2 } from "lucide-react"
-import AdminSidebar from "@/component/admin/sidebar"
-import Pagination from "@/component/admin/pagination"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Eye, Trash2 } from "lucide-react";
+import AdminSidebar from "@/components/admin/sidebar";
+import Pagination from "@/components/admin/pagination";
 
 // Mock data for users
 const mockUsers = [
@@ -44,28 +44,28 @@ const mockUsers = [
     phone: "0987654321",
     email: "song@gmail.com",
   },
-]
+];
 
 export default function UserManagementPage() {
-  const router = useRouter()
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("")
+  const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Filter users based on search term
   const filteredUsers = mockUsers.filter(
     (user) =>
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleDelete = (id: string) => {
-    console.log(`Delete user with ID: ${id}`)
+    console.log(`Delete user with ID: ${id}`);
     // In a real app, you would call an API to delete the user
-  }
+  };
 
   const handleView = (id: string) => {
-    router.push(`/admin/user-management/user/${id}`)
-  }
+    router.push(`/admin/user-management/user/${id}`);
+  };
 
   return (
     <AdminSidebar>
@@ -124,10 +124,18 @@ export default function UserManagementPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {user.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.phone}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.email}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
@@ -152,8 +160,12 @@ export default function UserManagementPage() {
           </table>
         </div>
 
-        <Pagination currentPage={currentPage} totalPages={5} onPageChange={setCurrentPage} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={5}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </AdminSidebar>
-  )
+  );
 }

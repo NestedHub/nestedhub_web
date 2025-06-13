@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import Image from "next/image"
-import AdminSidebar from "@/component/admin/sidebar"
-import BackButton from "@/component/ui/backbutton"
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import AdminSidebar from "@/components/admin/sidebar";
+import BackButton from "@/components/ui/backbutton";
 
 // Mock data for a property owner
 const mockPropertyOwnerDetail = {
@@ -12,7 +12,7 @@ const mockPropertyOwnerDetail = {
   email: "lyne@gmail.com",
   phone: "0987654321",
   telegram: "None",
-}
+};
 
 // Mock data for rental properties
 const mockRentalProperties = [
@@ -30,29 +30,29 @@ const mockRentalProperties = [
     status: "For rent",
     dateList: "04 Sep 2024",
   },
-]
+];
 
 export default function PropertyOwnerDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const ownerId = params.id as string
-  const [showAllRentModal, setShowAllRentModal] = useState(false)
+  const params = useParams();
+  const router = useRouter();
+  const ownerId = params.id as string;
+  const [showAllRentModal, setShowAllRentModal] = useState(false);
 
   // In a real app, you would fetch the property owner data based on the ID
-  const propertyOwner = mockPropertyOwnerDetail
+  const propertyOwner = mockPropertyOwnerDetail;
 
   const handleShowAllRent = () => {
-    setShowAllRentModal(true)
-  }
+    setShowAllRentModal(true);
+  };
 
   const handleCloseModal = () => {
-    setShowAllRentModal(false)
-  }
+    setShowAllRentModal(false);
+  };
 
   const handleViewProperty = (id: string) => {
-    router.push(`/admin/property-listing/rent/${id}`)
-    setShowAllRentModal(false) // Close the modal when navigating
-  }
+    router.push(`/admin/property-listing/rent/${id}`);
+    setShowAllRentModal(false); // Close the modal when navigating
+  };
 
   return (
     <AdminSidebar>
@@ -67,7 +67,9 @@ export default function PropertyOwnerDetailPage() {
             <tbody className="divide-y divide-gray-200">
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50 w-1/4">
-                  <span className="text-sm font-medium text-gray-900">Title</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Title
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-500">Detail</span>
@@ -75,15 +77,21 @@ export default function PropertyOwnerDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Name</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Name
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.name}</span>
+                  <span className="text-sm text-gray-500">
+                    {propertyOwner.name}
+                  </span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Profile</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Profile
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="h-20 w-20 rounded-full overflow-hidden">
@@ -99,23 +107,33 @@ export default function PropertyOwnerDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Email</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Email
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.email}</span>
+                  <span className="text-sm text-gray-500">
+                    {propertyOwner.email}
+                  </span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Phone</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Phone
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{propertyOwner.phone}</span>
+                  <span className="text-sm text-gray-500">
+                    {propertyOwner.phone}
+                  </span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Rents</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Rents
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
@@ -181,15 +199,23 @@ export default function PropertyOwnerDetailPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {mockRentalProperties.map((property) => (
                   <tr key={property.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{property.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {property.id}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {property.title}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {property.type}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                         {property.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.dateList}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {property.dateList}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
@@ -239,5 +265,5 @@ export default function PropertyOwnerDetailPage() {
         </div>
       )}
     </AdminSidebar>
-  )
+  );
 }

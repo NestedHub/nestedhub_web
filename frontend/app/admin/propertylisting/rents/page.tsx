@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Search, Eye, Edit, Trash2 } from "lucide-react"
-import AdminSidebar from "@/component/admin/sidebar"
-import Pagination from "@/component/admin/pagination"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Eye, Edit, Trash2 } from "lucide-react";
+import AdminSidebar from "@/components/admin/sidebar";
+import Pagination from "@/components/admin/pagination";
 
 // Mock data for rental properties
 const mockRentalProperties = [
@@ -43,32 +43,32 @@ const mockRentalProperties = [
     status: "For rent",
     dateList: "04 Sep 2024",
   },
-]
+];
 
 export default function RentalPropertiesPage() {
-  const router = useRouter()
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("")
+  const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Filter properties based on search term
   const filteredProperties = mockRentalProperties.filter(
     (property) =>
       property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.type.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      property.type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleEdit = (id: string) => {
-    router.push(`/admin/property-listing/rent/edit/${id}`)
-  }
+    router.push(`/admin/property-listing/rent/edit/${id}`);
+  };
 
   const handleDelete = (id: string) => {
-    console.log(`Delete property with ID: ${id}`)
+    console.log(`Delete property with ID: ${id}`);
     // In a real app, you would call an API to delete the property
-  }
+  };
 
   const handleView = (id: string) => {
-    router.push(`/admin/property-listing/rent/${id}`)
-  }
+    router.push(`/admin/property-listing/rent/${id}`);
+  };
 
   return (
     <AdminSidebar>
@@ -133,15 +133,23 @@ export default function RentalPropertiesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProperties.map((property) => (
                 <tr key={property.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{property.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.type}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {property.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {property.title}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {property.type}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                       {property.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.dateList}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {property.dateList}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
@@ -173,8 +181,12 @@ export default function RentalPropertiesPage() {
           </table>
         </div>
 
-        <Pagination currentPage={currentPage} totalPages={5} onPageChange={setCurrentPage} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={5}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </AdminSidebar>
-  )
+  );
 }

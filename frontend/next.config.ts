@@ -7,13 +7,19 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'hebbkx1anhila5yf.public.blob.vercel-storage.com',
         port: '',
-        pathname: '/**', // Allows all paths under this hostname
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+        port: '',
+        pathname: '/**',
       },
     ],
   },
-  webpackDevMiddleware: (config) => {
+  webpackDevMiddleware: (config: any) => {
     config.watchOptions = {
-      poll: 1000, // Check for file changes every 1000ms (1 second)
+      poll: 10000,
     };
     return config;
   },
@@ -23,7 +29,7 @@ const nextConfig: NextConfig = {
       headers: [
         {
           key: 'Cache-Control',
-          value: 'no-store, max-age=0', // Disable caching in development
+          value: 'no-store, max-age=0',
         },
       ],
     },

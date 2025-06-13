@@ -1,19 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../providers/auth-provider';
-import { loginService } from '../services/authService';
+import { useAuthContext } from '@/lib/context/AuthContext';
+import { UserResponse } from '@/lib/user'; // Corrected import path for UserResponse if it moved to lib/types/user.ts
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setAuthState } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading, user } = useAuthContext();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
+
+  const isLoading = localLoading || authLoading;
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      switch (user.role) {
+        case 'customer': // Changed from 'user' to 'customer'
+          router.push('/user');
+          break;
+        case 'property_owner': // Changed from 'propertyowner' to 'property_owner'
+          router.push('/propertyowner/dashboard');
+          break;
+        case 'admin':
+          router.push('/admin/dashboard');
+          break;
+        default:
+          console.error('Invalid user role detected after login:', user.role);
+          router.push('/');
+          break;
+      }
+    }
+  }, [isAuthenticated, user, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -23,32 +45,11 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
+    setLocalLoading(true);
 
     try {
-      const response = await loginService(formData.email, formData.password);
-      
-      // Store auth state
-      setAuthState({
-        isAuthenticated: true,
-        user: response.user,
-        token: response.access_token,
-      });
-
-      // Redirect based on role
-      switch (response.user.role) {
-        case 'user':
-          router.push('/user/dashboard');
-          break;
-        case 'propertyowner':
-          router.push('/propertyowner/dashboard');
-          break;
-        case 'admin':
-          router.push('/admin/dashboard');
-          break;
-        default:
-          throw new Error('Invalid user role');
-      }
+      await login(formData.email, formData.password);
+      // Redirection is handled by the useEffect above
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -57,25 +58,25 @@ export default function LoginPage() {
       }
       console.error('Login error:', err);
     } finally {
-      setIsLoading(false);
+      setLocalLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-white py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-2xl space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-green-800">
             Sign in to your account
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
+            <div className="rounded-lg bg-red-50 p-4 border border-red-200">
               <div className="text-sm text-red-700">{error}</div>
             </div>
           )}
-          <div className="rounded-md shadow-sm -space-y-px">
+          <div className="space-y-4">
             <div>
               <label htmlFor="email" className="sr-only">
                 Email address
@@ -84,8 +85,9 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
+                autoComplete="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm transition-all duration-200"
                 placeholder="Email address"
                 value={formData.email}
                 onChange={handleChange}
@@ -100,8 +102,9 @@ export default function LoginPage() {
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="current-password"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm transition-all duration-200"
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
@@ -114,10 +117,11 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg shadow-md transition-all duration-200
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
                 isLoading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-indigo-600 hover:bg-indigo-700'
+                  ? 'bg-gray-400 cursor-not-allowed text-gray-700'
+                  : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white'
               }`}
             >
               {isLoading ? (
