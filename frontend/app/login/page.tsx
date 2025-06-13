@@ -1,18 +1,23 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthContext } from '@/lib/context/AuthContext';
-import { UserResponse } from '@/lib/user'; // Corrected import path for UserResponse if it moved to lib/types/user.ts
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthContext } from "@/lib/context/AuthContext";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, isLoading: authLoading, user } = useAuthContext();
+  const {
+    login,
+    isAuthenticated,
+    isLoading: authLoading,
+    user,
+  } = useAuthContext();
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [localLoading, setLocalLoading] = useState(false);
 
   const isLoading = localLoading || authLoading;
@@ -20,18 +25,18 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated && user) {
       switch (user.role) {
-        case 'customer': // Changed from 'user' to 'customer'
-          router.push('/user');
+        case "customer": // Changed from 'user' to 'customer'
+          router.push("/user");
           break;
-        case 'property_owner': // Changed from 'propertyowner' to 'property_owner'
-          router.push('/propertyowner/dashboard');
+        case "property_owner": // Changed from 'propertyowner' to 'property_owner'
+          router.push("/propertyowner/dashboard");
           break;
-        case 'admin':
-          router.push('/admin/dashboard');
+        case "admin":
+          router.push("/admin/dashboard");
           break;
         default:
-          console.error('Invalid user role detected after login:', user.role);
-          router.push('/');
+          console.error("Invalid user role detected after login:", user.role);
+          router.push("/");
           break;
       }
     }
@@ -39,26 +44,26 @@ export default function LoginPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (error) setError('');
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (error) setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLocalLoading(true);
 
     try {
       await login(formData.email, formData.password);
       // Redirection is handled by the useEffect above
     } catch (err) {
-      console.error('Login error:', err);
+      console.error("Login error:", err);
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('An unexpected error occurred');
+        setError("An unexpected error occurred");
       }
-      console.error('Login error:', err);
+      console.error("Login error:", err);
     } finally {
       setLocalLoading(false);
     }
@@ -121,21 +126,37 @@ export default function LoginPage() {
               disabled={isLoading}
               className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg shadow-md transition-all duration-200
                 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
-                isLoading
-                  ? 'bg-gray-400 cursor-not-allowed text-gray-700'
-                  : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white'
-              }`}
+                  isLoading
+                    ? "bg-gray-400 cursor-not-allowed text-gray-700"
+                    : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                }`}
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Loading...
                 </>
               ) : (
-                'Sign in'
+                "Sign in"
               )}
             </button>
           </div>

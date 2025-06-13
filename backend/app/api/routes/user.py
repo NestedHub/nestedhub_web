@@ -12,11 +12,7 @@ from app.crud.crud_user import (
 )
 from app.models.models import User, UserRole
 from app.api.deps import get_db_session, get_current_user, require_admin, get_current_user_optional
-<<<<<<< HEAD
-from app.models.user_schemas import UserRole, UserCreate, UserResponse, TokenResponse, PasswordResetRequest, PasswordResetConfirm, TokenRevoke, UserUpdate, UserCountResponse
-=======
-from app.models.user_schemas import UserRole, UserCreate, UserResponse, TokenResponse, PasswordResetRequest, PasswordResetConfirm, TokenRevoke, UserUpdate, PublicUserResponse
->>>>>>> userhomepage
+from app.models.user_schemas import UserRole, UserCreate, UserResponse, TokenResponse, PasswordResetRequest, PasswordResetConfirm, TokenRevoke, UserUpdate, PublicUserResponse, UserCountResponse
 from app.core.config import settings
 import httpx
 import urllib.parse

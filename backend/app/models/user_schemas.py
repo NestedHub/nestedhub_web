@@ -70,12 +70,6 @@ class PasswordResetConfirm(BaseModel):
 
 class TokenRevoke(BaseModel):
     token: str
-<<<<<<< HEAD
-
-
-class UserCountResponse(BaseModel):
-    total: int
-=======
     expires_at: datetime
 
 class PublicUserResponse(BaseModel):
@@ -89,4 +83,19 @@ class PublicUserResponse(BaseModel):
     class Config:
         from_attributes = True
         orm_mode = True
->>>>>>> userhomepage
+
+class UserCountResponse(BaseModel):
+    total: int
+    expires_at: datetime
+
+class PublicUserResponse(BaseModel):
+    user_id: int
+    name: str
+    email: EmailStr
+    phone: Optional[str]
+    role: UserRole
+    profile_picture_url: Optional[str] = None  # Safe to show
+
+    class Config:
+        from_attributes = True
+        orm_mode = True
