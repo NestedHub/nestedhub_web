@@ -232,5 +232,4 @@ export default function UserManagementPage() {
       </div>
     </AdminSidebar>
   );
-  );
 }

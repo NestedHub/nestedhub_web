@@ -200,26 +200,26 @@ def init_db(session: Session) -> None:
 
     # Initialize Users
     users = [
-        User(name="Sokha Meas", email="sokha.meas@example.com", phone="+85512345678", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Sokha Meas", email="sokha.meas@example.com", phone="+85512345678", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
         User(name="Chantha Kim", email="chantha.kim@example.com", phone="+85598765432", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/chantha_kim.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Rathana Sovann", email="rathana.sovann@example.com", phone="+85591234567", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Rathana Sovann", email="rathana.sovann@example.com", phone="+85591234567", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
         User(name="Srey Pov", email="srey.pov@example.com", phone="+85587654321", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/srey_pov.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Vannak Chea", email="vannak.chea@example.com", phone="+85576543210", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Sophea Lim", email="sophea.lim@example.com", phone="+85512398765", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Vannak Chea", email="vannak.chea@example.com", phone="+85576543210", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Sophea Lim", email="sophea.lim@example.com", phone="+85512398765", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
         User(name="Dara Seng", email="dara.seng@example.com", phone="+85523456789", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/dara_seng.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Maly Noun", email="maly.noun@example.com", phone="+85534567890", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Rithy Phon", email="rithy.phon@example.com", phone="+85545678901", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Maly Noun", email="maly.noun@example.com", phone="+85534567890", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Rithy Phon", email="rithy.phon@example.com", phone="+85545678901", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
         User(name="Sokunthea Chhay", email="sokunthea.chhay@example.com", phone="+85556789012", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/sokunthea_chhay.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Vuthy Sok", email="vuthy.sok@example.com", phone="+85567890123", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Sreylin Mao", email="sreylin.mao@example.com", phone="+85578901234", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Vuthy Sok", email="vuthy.sok@example.com", phone="+85567890123", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Sreylin Mao", email="sreylin.mao@example.com", phone="+85578901234", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
         User(name="Chhay Leang", email="chhay.leang@example.com", phone="+85589012345", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/chhay_leang.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Sokhom Vong", email="sokhom.vong@example.com", phone="+85590123456", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Thida Sam", email="thida.sam@example.com", phone="+85512344321", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Sokhom Vong", email="sokhom.vong@example.com", phone="+85590123456", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Thida Sam", email="thida.sam@example.com", phone="+85512344321", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
         User(name="Borey Keo", email="borey.keo@example.com", phone="+85523455432", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/borey_keo.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Sreyneang Ouk", email="sreyneang.ouk@example.com", phone="+85534566543", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Vannara Tep", email="vannara.tep@example.com", phone="+85545677654", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Sreyneang Ouk", email="sreyneang.ouk@example.com", phone="+85534566543", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Vannara Tep", email="vannara.tep@example.com", phone="+85545677654", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
         User(name="Pich Sopheak", email="pich.sopheak@example.com", phone="+85556788765", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/pich_sopheak.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Chenda Nguon", email="chenda.nguon@example.com", phone="+85567899876", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Chenda Nguon", email="chenda.nguon@example.com", phone="+85567899876", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
     ]
     session.add_all(users)
     session.flush()  # Assign user IDs
@@ -353,7 +353,7 @@ def init_db(session: Session) -> None:
             seed = f"{property.property_id}_{i}"
             media = PropertyMedia(
                 property_id=property.property_id,
-                media_url=f"https://picsum.photos/seed/{seed}/400/250",  # You can adjust the size if needed
+                media_url=f"https://picsum.photos/seed/{seed}/600/350",  # You can adjust the size if needed
                 media_type=MediaType.image,
             )
             session.add(media)

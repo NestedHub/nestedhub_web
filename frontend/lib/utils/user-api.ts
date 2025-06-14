@@ -51,7 +51,8 @@ export function clearTokens() {
 }
 
 // --- Generic Fetch Helper for Authenticated Requests ---
-async function fetchAuthenticated<T>(
+// ADDED 'export' KEYWORD HERE TO FIX THE ERROR
+export async function fetchAuthenticated<T>(
   endpoint: string,
   method: string,
   body?: object | URLSearchParams,
@@ -117,7 +118,7 @@ async function fetchAuthenticated<T>(
 }
 
 // --- Generic Fetch Helper for Unauthenticated Requests ---
-async function fetchUnauthenticated<T>(
+export async function fetchUnauthenticated<T>( // Keep this exported as it might be used
   endpoint: string,
   method: string,
   body?: object | URLSearchParams,
