@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/app/providers/AuthProvider';
+import { useAuthContext } from '@/lib/context/AuthContext'; // <-- CORRECTED IMPORT PATH
 
 export default function AdminLayout({
   children,
@@ -11,10 +11,10 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, user, loading } = useAuth();
+  const { isAuthenticated, user, isLoading: loading } = useAuthContext(); // Using isLoading from useAuthContext
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading) { // Ensure authentication state has been determined
       if (!isAuthenticated || !user || user.role !== 'admin') {
         // Don't redirect if already on the login page
         if (pathname !== '/admin/login') {
@@ -39,8 +39,7 @@ export default function AdminLayout({
     );
   }
 
-  // If not authenticated or not admin, don't render anything while redirecting
-  // But allow rendering the login page
+  // If not authenticated or not admin, and NOT on the login page, return null to prevent content flicker
   if ((!isAuthenticated || !user || user.role !== 'admin') && pathname !== '/admin/login') {
     return null;
   }
@@ -50,4 +49,4 @@ export default function AdminLayout({
       {children}
     </div>
   );
-} 
+}

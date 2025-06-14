@@ -1,10 +1,11 @@
+// component/admin/sidebar.tsx
 "use client"
 
 import { useState, useEffect, memo } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ChevronDown, ChevronUp, LayoutDashboard, Users, Home, LogOut } from "lucide-react"
-import { useAuth } from "@/app/providers/AuthProvider"
+import { useAuthContext } from "@/lib/context/AuthContext" // <-- CORRECTED IMPORT PATH
 
 interface SidebarProps {
   children: React.ReactNode
@@ -12,7 +13,7 @@ interface SidebarProps {
 
 const AdminSidebar = memo(function AdminSidebar({ children }: SidebarProps) {
   const pathname = usePathname()
-  const { user } = useAuth()
+  const { user, logout } = useAuthContext() // <-- CORRECTED HOOK CALL, also added logout for later
   const [userManagementOpen, setUserManagementOpen] = useState(false)
   const [propertyListingOpen, setPropertyListingOpen] = useState(false)
 
@@ -25,6 +26,18 @@ const AdminSidebar = memo(function AdminSidebar({ children }: SidebarProps) {
     if (isUserManagementActive) setUserManagementOpen(true)
     if (isPropertyListingActive) setPropertyListingOpen(true)
   }, [isUserManagementActive, isPropertyListingActive])
+
+  // Handle logout action
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default link behavior
+    try {
+      await logout(); // Call the logout function from useAuthContext
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Optionally show a user-friendly error message
+    }
+    // The useAuthContext hook already handles redirection to /login
+  };
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -154,13 +167,14 @@ const AdminSidebar = memo(function AdminSidebar({ children }: SidebarProps) {
 
             {/* Logout */}
             <li>
-              <Link
-                href="/admin/logout"
+              <a
+                href="/admin/login" // Keep href for accessibility/fallback
+                onClick={handleLogout} // Call the new handler
                 className="flex items-center p-2 rounded-md hover:bg-gray-100 text-gray-700"
               >
                 <LogOut className="w-5 h-5 mr-3" />
                 Logout
-              </Link>
+              </a>
             </li>
           </ul>
         </nav>

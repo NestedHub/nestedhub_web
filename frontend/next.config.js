@@ -3,10 +3,17 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'hebbkx1anhila5yf.public.blob.vercel-storage.com',
-        port: '',
-        pathname: '/**', // Allows all paths under this hostname
+        protocol: "https",
+        hostname: "hebbkx1anhila5yf.public.blob.vercel-storage.com",
+        port: "",
+        pathname: "/**", // Allows all paths under this hostname
+      },
+      // ADD THIS ENTRY FOR PICSUM.PHOTOS
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+        port: "",
+        pathname: "/**", // Allows any path under picsum.photos
       },
     ],
   },
@@ -21,7 +28,7 @@ const nextConfig = {
   // Optimize production performance
   experimental: {
     optimizeCss: true, // Enable CSS optimization
-    optimizePackageImports: ['lucide-react'], // Optimize specific package imports
+    optimizePackageImports: ["lucide-react"], // Optimize specific package imports
   },
   // Disable unnecessary features in development
   reactStrictMode: true,
@@ -29,17 +36,18 @@ const nextConfig = {
   compress: true,
   headers: async () => [
     {
-      source: '/:path*',
+      source: "/:path*",
       headers: [
         {
-          key: 'Cache-Control',
-          value: process.env.NODE_ENV === 'production' 
-            ? 'public, max-age=31536000, immutable' // Cache for 1 year in production
-            : 'no-store, max-age=0', // No cache in development
+          key: "Cache-Control",
+          value:
+            process.env.NODE_ENV === "production"
+              ? "public, max-age=31536000, immutable" // Cache for 1 year in production
+              : "no-store, max-age=0", // No cache in development
         },
       ],
     },
   ],
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;
