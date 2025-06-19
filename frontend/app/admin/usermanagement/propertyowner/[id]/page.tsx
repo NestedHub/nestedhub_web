@@ -1,56 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import Image from "next/image"
-import { toast } from "react-hot-toast"
-import { Ban, Check, X } from "lucide-react"
-import AdminSidebar from "@/component/admin/sidebar"
-import BackButton from "@/component/ui/backbutton"
-import { userApi, type User } from "@/lib/api/user"
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import { toast } from "react-hot-toast";
+import { Ban, Check, X } from "lucide-react";
+import AdminSidebar from "@/component/admin/sidebar";
+import BackButton from "@/component/ui/backbutton";
+import { userApi, type User } from "@/lib/api/user";
 
 export default function PropertyOwnerDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const userId = parseInt(params.id as string)
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const params = useParams();
+  const router = useRouter();
+  const userId = parseInt(params.id as string);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        setIsLoading(true)
-        const userData = await userApi.getUser(userId)
-        if (userData.role !== 'property_owner') {
-          throw new Error('Not a property owner')
+        setIsLoading(true);
+        const userData = await userApi.getUser(userId);
+        if (userData.role !== "property_owner") {
+          throw new Error("Not a property owner");
         }
-        setUser(userData)
+        setUser(userData);
       } catch (error) {
-        console.error('Error fetching property owner:', error)
-        toast.error('Failed to fetch property owner details')
-        router.push('/admin/usermanagement/propertyowner') // Redirect back to list on error
+        console.error("Error fetching property owner:", error);
+        toast.error("Failed to fetch property owner details");
+        router.push("/admin/usermanagement/propertyowner"); // Redirect back to list on error
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
     if (userId) {
-      fetchUser()
+      fetchUser();
     }
-  }, [userId, router])
+  }, [userId, router]);
 
   const handleBanToggle = async () => {
     if (!user) return;
 
     try {
       await userApi.toggleUserBan(userId, user.is_active);
-      toast.success(user.is_active ? 'Property owner banned successfully' : 'Property owner unbanned successfully');
+      toast.success(
+        user.is_active
+          ? "Property owner banned successfully"
+          : "Property owner unbanned successfully"
+      );
       // Refresh user data
       const updatedUser = await userApi.getUser(userId);
       setUser(updatedUser);
     } catch (error) {
-      console.error('Error toggling property owner ban:', error);
-      toast.error('Failed to update property owner status');
+      console.error("Error toggling property owner ban:", error);
+      toast.error("Failed to update property owner status");
     }
   };
 
@@ -59,30 +63,30 @@ export default function PropertyOwnerDetailPage() {
 
     try {
       await userApi.approvePropertyOwner(userId);
-      toast.success('Property owner approved successfully');
+      toast.success("Property owner approved successfully");
       // Refresh user data
       const updatedUser = await userApi.getUser(userId);
       setUser(updatedUser);
     } catch (error) {
-      console.error('Error approving property owner:', error);
-      toast.error('Failed to approve property owner');
+      console.error("Error approving property owner:", error);
+      toast.error("Failed to approve property owner");
     }
   };
 
   const handleReject = async () => {
     if (!user) return;
 
-    if (!confirm('Are you sure you want to reject this property owner?')) {
+    if (!confirm("Are you sure you want to reject this property owner?")) {
       return;
     }
 
     try {
       await userApi.rejectPropertyOwner(userId);
-      toast.success('Property owner rejected successfully');
-      router.push('/admin/usermanagement/propertyowner');
+      toast.success("Property owner rejected successfully");
+      router.push("/admin/usermanagement/propertyowner");
     } catch (error) {
-      console.error('Error rejecting property owner:', error);
-      toast.error('Failed to reject property owner');
+      console.error("Error rejecting property owner:", error);
+      toast.error("Failed to reject property owner");
     }
   };
 
@@ -93,7 +97,7 @@ export default function PropertyOwnerDetailPage() {
           <div className="text-gray-500">Loading...</div>
         </div>
       </AdminSidebar>
-    )
+    );
   }
 
   if (!user) {
@@ -103,7 +107,7 @@ export default function PropertyOwnerDetailPage() {
           <div className="text-red-500">Property owner not found</div>
         </div>
       </AdminSidebar>
-    )
+    );
   }
 
   return (
@@ -137,12 +141,16 @@ export default function PropertyOwnerDetailPage() {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Profile Picture</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Profile Picture
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="h-20 w-20 rounded-full overflow-hidden">
                     <Image
-                      src={user.profile_picture_url || "/avatar-placeholder.png"}
+                      src={
+                        user.profile_picture_url || "/avatar-placeholder.png"
+                      }
                       alt="User Avatar"
                       width={80}
                       height={80}
@@ -168,56 +176,64 @@ export default function PropertyOwnerDetailPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{user.phone || 'N/A'}</span>
+                  <span className="text-sm text-gray-500">
+                    {user.phone || "N/A"}
+                  </span>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Status</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Status
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex flex-col gap-1">
                     <span
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         user.is_active
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
                       }`}
                     >
-                      {user.is_active ? 'Active' : 'Banned'}
+                      {user.is_active ? "Active" : "Banned"}
                     </span>
                     <span
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         user.is_approved
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                          ? "bg-green-100 text-green-800"
+                          : "bg-yellow-100 text-yellow-800"
                       }`}
                     >
-                      {user.is_approved ? 'Approved' : 'Pending Approval'}
+                      {user.is_approved ? "Approved" : "Pending Approval"}
                     </span>
                   </div>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                  <span className="text-sm font-medium text-gray-900">Email Verified</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    Email Verified
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
                     className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       user.is_email_verified
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
+                        ? "bg-green-100 text-green-800"
+                        : "bg-yellow-100 text-yellow-800"
                     }`}
                   >
-                    {user.is_email_verified ? 'Verified' : 'Not Verified'}
+                    {user.is_email_verified ? "Verified" : "Not Verified"}
                   </span>
                 </td>
               </tr>
               {user.id_card_url && (
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap bg-gray-50">
-                    <span className="text-sm font-medium text-gray-900">ID Card</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      ID Card
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="h-40 w-64 relative">
@@ -258,12 +274,12 @@ export default function PropertyOwnerDetailPage() {
               onClick={handleBanToggle}
               className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
                 user.is_active
-                  ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                  : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                  ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+                  : "bg-green-600 hover:bg-green-700 focus:ring-green-500"
               } focus:outline-none focus:ring-2 focus:ring-offset-2`}
             >
               <Ban className="h-4 w-4 mr-2" />
-              {user.is_active ? 'Ban Property Owner' : 'Unban Property Owner'}
+              {user.is_active ? "Ban Property Owner" : "Unban Property Owner"}
             </button>
           )}
         </div>

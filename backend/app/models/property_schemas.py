@@ -65,7 +65,7 @@ class PropertyComparisonItem(BaseModel):
     bathrooms: int
     floor_area: Decimal
     features: List[str]
-    media_url: Optional[str] = None  # First image, if available
+    media_urls: List[str] = []  # First image, if available
     status: PropertyStatusEnum
 
 

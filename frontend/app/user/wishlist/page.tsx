@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useWishlist } from "@/lib/hooks/useWishlist"; // Ensure this path is correct
+import { useWishlist } from "@/lib/hooks/usewishlist"; // Ensure this path is correct
 import PropertyCard from "@/component/property/propertyCard"; // Ensure this path is correct
-import { Heart, XCircle } from "lucide-react"; // Only keeping Heart and XCircle
+import { Heart, XCircle, Search, ListChecks } from "lucide-react"; // Add Search and ListChecks icons
 import { fetchPropertyById } from "@/lib/utils/api"; // Assuming you have this fetcher
 import { WishListResponse } from "@/lib/types"; // Import WishListResponse
+import { usePropertySelection } from "@/lib/hooks/usePropertySelection"; // Import the new selection hook
+import { useRouter } from 'next/navigation'; // For navigation (Next.js App Router) or 'next/router' for Pages Router
 
 // Define a type for the property data you actually want to display in PropertyCard
 // This should match what your PropertyCard expects.
@@ -55,8 +57,19 @@ interface DisplayProperty {
 }
 
 export default function WishlistPage() {
-  const { wishlist, isLoading, error, removeProperty, refetchWishlist } =
-    useWishlist();
+  const router = useRouter(); // Initialize router
+  const { wishlist, isLoading, error, removeProperty, refetchWishlist } = useWishlist();
+
+  // Use the new property selection hook
+  const {
+    selectedPropertyIds,
+    toggleProperty,
+    clearSelection,
+    isPropertySelected,
+  } = usePropertySelection();
+
+  // State to control if the selection UI (checkboxes, special border) is active
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // State to hold the fully detailed property objects for display
   const [detailedWishlistProperties, setDetailedWishlistProperties] = useState<
@@ -65,6 +78,12 @@ export default function WishlistPage() {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
+  // You might need a way to determine if the user is authenticated and loading.
+  // For demonstration, I'll use placeholders. In a real app, this would come from your useAuth hook.
+  const isUserAuthenticated = true; // Placeholder: Replace with actual auth check
+  const isUserLoading = false; // Placeholder: Replace with actual auth loading state
+
+
   // Fetch detailed property information for each item in the wishlist
   const fetchDetailedProperties = useCallback(
     async (currentWishlist: WishListResponse[]) => {
@@ -72,16 +91,14 @@ export default function WishlistPage() {
       setErrorDetails(null);
       try {
         const detailedPropsPromises = currentWishlist.map(async (item) => {
-          // Use your existing fetchPropertyById, ensure it's imported
           const propertyData = await fetchPropertyById(
             String(item.property_id)
           );
 
-          // Map propertyData to DisplayProperty interface, ensuring property_id is correct
           return {
             ...propertyData,
-            is_wishlisted: true, // Mark as wishlisted since it's from the wishlist
-            property_id: item.property_id, // Ensure property_id from wishlist item is used
+            is_wishlisted: true,
+            property_id: item.property_id,
           } as DisplayProperty;
         });
 
@@ -111,8 +128,9 @@ export default function WishlistPage() {
       setDetailedWishlistProperties([]); // Clear details if wishlist is empty
       setIsLoadingDetails(false);
       setErrorDetails(null);
+      clearSelection(); // Also clear selection if wishlist becomes empty
     }
-  }, [wishlist, fetchDetailedProperties]); // Depend on wishlist and memoized fetcher
+  }, [wishlist, fetchDetailedProperties, clearSelection]); // Depend on wishlist, memoized fetcher, and clearSelection
 
   // Handle removing a property from wishlist (from PropertyCard or explicit button)
   const handleRemoveFromWishlist = async (propertyId: number) => {
@@ -121,11 +139,27 @@ export default function WishlistPage() {
       // The `useWishlist` hook handles optimistic updates or refetches,
       // which will then trigger the `useEffect` above to update `detailedWishlistProperties`.
       console.log(`Property ${propertyId} removed from wishlist.`);
+      // Deselect the property if it was part of the comparison selection
+      if (isPropertySelected(propertyId)) {
+        toggleProperty(propertyId);
+      }
     } catch (e: any) {
       console.error("Failed to remove property:", e);
       alert(e.message || "Failed to remove property from wishlist.");
       refetchWishlist(); // If optimistic update failed, force a refetch
     }
+  };
+
+  // Handle the click on the "Compare" button
+  const handleCompareClick = () => {
+    if (selectedPropertyIds.length < 2) {
+      alert("Please select at least two properties to compare.");
+      return;
+    }
+    // Navigate to the comparison screen, passing selected IDs as query parameters
+    const queryParams = new URLSearchParams();
+    selectedPropertyIds.forEach(id => queryParams.append('propertyIds', id.toString()));
+    router.push(`/user/compare?${queryParams.toString()}`);
   };
 
   // --- Loading States ---
@@ -156,9 +190,56 @@ export default function WishlistPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800 border-b pb-4">
-        My Wishlist
-      </h1>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 border-b pb-4">
+        <h1 className="text-3xl font-bold text-gray-800 mb-4 sm:mb-0">
+          My Wishlist
+        </h1>
+        <div className="flex flex-wrap justify-center sm:justify-end items-center gap-4">
+          {/* Toggle Selection Mode Button */}
+          {detailedWishlistProperties.length > 0 && (
+            <button
+              onClick={() => {
+                setIsSelectionMode(prev => !prev);
+                if (isSelectionMode) { // If turning selection mode OFF, clear selection
+                  clearSelection();
+                }
+              }}
+              className={`flex items-center px-4 py-2 rounded-md shadow-sm transition-colors text-sm
+                ${isSelectionMode 
+                  ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              <ListChecks className="h-5 w-5 mr-2" />
+              {isSelectionMode ? 'Exit Selection Mode' : 'Select for Comparison'}
+            </button>
+          )}
+
+          {/* Clear Selection Button (only visible in selection mode and if items are selected) */}
+          {isSelectionMode && selectedPropertyIds.length > 0 && (
+            <button
+              onClick={clearSelection}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm"
+            >
+              Clear Selection ({selectedPropertyIds.length})
+            </button>
+          )}
+
+          {/* Compare Button (only visible in selection mode and if 2+ items selected) */}
+          {isSelectionMode && (
+            <button
+              onClick={handleCompareClick}
+              disabled={selectedPropertyIds.length < 2} // Disable if less than 2 selected
+              className={`flex items-center px-6 py-3 rounded-md shadow-sm transition-colors text-base
+                ${selectedPropertyIds.length >= 2
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+            >
+              <Search className="h-5 w-5 mr-2" />
+              Compare ({selectedPropertyIds.length})
+            </button>
+          )}
+        </div>
+      </div>
 
       {isLoadingDetails ? (
         <div className="text-center py-12 text-gray-600">
@@ -175,33 +256,37 @@ export default function WishlistPage() {
       ) : detailedWishlistProperties.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {detailedWishlistProperties.map((property) => (
-          <PropertyCard
-            key={property.property_id}
-            property={{
-              id: property.property_id.toString(),
-              title: property.title,
-              category: property.category_name,
-              price: property.pricing?.rent_price
-                ? property.pricing.rent_price.toLocaleString()
-                : "N/A",
-              location: property.location?.city_name || "Unknown",
-              bedrooms: property.bedrooms,
-              bathrooms: property.bathrooms,
-              image:
-                property.media && property.media.length > 0
-                  ? property.media[0].media_url
-                  : "/placeholder.jpg",
-              rating: property.rating, // Pass rating if available
-            }}
-            initialIsWishlisted={true} // Hydrate internal state as wishlisted
-            canOnlyRemove={true} // Only allow removal from wishlist here
-            onWishlistChange={(_, isWishlisted) => {
-              // If removed, trigger parent handler
-              if (!isWishlisted) handleRemoveFromWishlist(property.property_id);
-            }}
-            isUserAuthenticated={true} // or use actual authentication state if available
-            isUserLoading={false} // or use actual loading state if available
-          />
+            <PropertyCard
+              key={property.property_id}
+              property={{
+                id: property.property_id.toString(),
+                title: property.title,
+                category: property.category_name,
+                price: property.pricing?.rent_price
+                  ? property.pricing.rent_price.toLocaleString()
+                  : "N/A",
+                location: property.location?.city_name || "Unknown",
+                bedrooms: property.bedrooms,
+                bathrooms: property.bathrooms,
+                image:
+                  property.media && property.media.length > 0
+                    ? property.media[0].media_url
+                    : "/placeholder.jpg",
+                rating: property.rating,
+              }}
+              initialIsWishlisted={true}
+              canOnlyRemove={true}
+              onWishlistChange={(_, isWishlisted) => {
+                if (!isWishlisted) handleRemoveFromWishlist(property.property_id);
+              }}
+              // Pass user authentication status to PropertyCard
+              isUserAuthenticated={isUserAuthenticated}
+              isUserLoading={isUserLoading}
+              // Pass selection props to PropertyCard
+              onSelect={toggleProperty} // Use toggleProperty from the hook
+              isSelected={isPropertySelected(property.property_id)} // Check if selected
+              isSelectionMode={isSelectionMode} // Pass the selection mode status
+            />
           ))}
         </div>
       ) : (
@@ -217,7 +302,6 @@ export default function WishlistPage() {
             our listings and click the heart icon to add properties you love to your
             wishlist.
           </p>
-          {/* Optionally, add a button to navigate to property listings */}
           <a
             href="/user/rent" // Adjust this path to your property listing page
             className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"

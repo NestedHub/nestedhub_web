@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { LayoutGrid, Home } from 'lucide-react';
-import Sidebar from '@/component/dashoboadpropertyowner/sidebar';
-import Card from '@/component/dashoboadpropertyowner/card';
+import Sidebar from '@/components/dashoboadpropertyowner/sidebar';
+import Card from '@/components/dashoboadpropertyowner/card';
 
 interface PropertyOwnerStats {
   totalProperties: number;

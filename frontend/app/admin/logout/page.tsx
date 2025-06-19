@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import AdminSidebar from "@/components/admin/sidebar";
+import AdminSidebar from "@/component/admin/sidebar";
 
 export default function AdminLogoutPage() {
   const router = useRouter();
@@ -21,9 +21,9 @@ export default function AdminLogoutPage() {
 
     // Redirect to admin login page after a short delay
     setTimeout(() => {
-      router.push("/login")
-    }, 1000)
-  }
+      router.push("/login");
+    }, 1000);
+  };
 
   return (
     <AdminSidebar>

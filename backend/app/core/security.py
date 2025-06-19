@@ -6,6 +6,10 @@ from app.models.models import UserRole
 from app.core.config import settings
 import secrets
 
+# Token Expiration Constants
+ACCESS_TOKEN_EXPIRE_MINUTES = 120  # 30 minutes
+REFRESH_TOKEN_EXPIRE_DAYS = 7     # 7 days
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 
@@ -34,7 +38,7 @@ def create_access_token(
         "role": role.value,
         "iat": datetime.now(timezone.utc),
     }
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=30))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
 
@@ -59,7 +63,7 @@ def create_refresh_token(
         "jti": secrets.token_hex(16),  # Unique token identifier
         "iat": datetime.now(timezone.utc),
     }
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=7))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
 

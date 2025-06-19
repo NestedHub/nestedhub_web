@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import AdminSidebar from "@/components/admin/sidebar";
+import AdminSidebar from "@/component/admin/sidebar";
 import BackButton from "@/components/ui/backbutton";
 // Mock data for a rental property
 const mockPropertyDetail = {

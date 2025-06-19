@@ -1,65 +1,67 @@
 "use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Search, Eye, Edit, Trash2 } from "lucide-react"
-import AdminSidebar from "@/component/admin/sidebar"
-import Pagination from "@/component/admin/pagination"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Eye, Edit, Trash2 } from "lucide-react";
+import AdminSidebar from "@/component/admin/sidebar";
+import Pagination from "@/component/admin/pagination";
 
 interface Property {
-  id: string
-  title: string
-  type: string
-  status: string
-  dateList: string
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  dateList: string;
 }
 
 export default function RentalPropertiesPage() {
-  const router = useRouter()
-  const [properties, setProperties] = useState<Property[]>([])
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [totalPages, setTotalPages] = useState(1)
+  const router = useRouter();
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     const fetchProperties = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/properties?page=${currentPage}`,
+          `${
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+          }/api/properties?page=${currentPage}`,
           {
             credentials: "include",
             headers: {
               "Content-Type": "application/json",
             },
           }
-        )
+        );
 
         if (!response.ok) {
-          throw new Error("Failed to fetch properties")
+          throw new Error("Failed to fetch properties");
         }
 
-        const data = await response.json()
-        setProperties(data.items)
-        setTotalPages(Math.ceil(data.total / data.per_page))
+        const data = await response.json();
+        setProperties(data.items);
+        setTotalPages(Math.ceil(data.total / data.per_page));
       } catch (err) {
-        console.error("Error fetching properties:", err)
-        setError("Failed to load properties")
+        console.error("Error fetching properties:", err);
+        setError("Failed to load properties");
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchProperties()
-  }, [currentPage])
+    fetchProperties();
+  }, [currentPage]);
 
   // Filter properties based on search term
   const filteredProperties = properties.filter(
     (property) =>
       property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       property.type.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  );
 
   const handleEdit = (id: string) => {
     router.push(`/admin/property-listing/rent/edit/${id}`);
@@ -67,12 +69,14 @@ export default function RentalPropertiesPage() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this property?")) {
-      return
+      return;
     }
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/properties/${id}`,
+        `${
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+        }/api/properties/${id}`,
         {
           method: "DELETE",
           credentials: "include",
@@ -80,30 +84,30 @@ export default function RentalPropertiesPage() {
             "Content-Type": "application/json",
           },
         }
-      )
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to delete property")
+        throw new Error("Failed to delete property");
       }
 
       // Remove the deleted property from the state
-      setProperties((prev) => prev.filter((property) => property.id !== id))
+      setProperties((prev) => prev.filter((property) => property.id !== id));
     } catch (err) {
-      console.error("Error deleting property:", err)
-      alert("Failed to delete property")
+      console.error("Error deleting property:", err);
+      alert("Failed to delete property");
     }
-  }
+  };
 
   const handleView = (id: string) => {
-    router.push(`/admin/property-listing/rent/${id}`)
-  }
+    router.push(`/admin/property-listing/rent/${id}`);
+  };
 
   if (error) {
     return (
       <AdminSidebar>
         <div className="text-red-600">{error}</div>
       </AdminSidebar>
-    )
+    );
   }
 
   return (
@@ -182,15 +186,23 @@ export default function RentalPropertiesPage() {
               ) : (
                 filteredProperties.map((property) => (
                   <tr key={property.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{property.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {property.id}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {property.title}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {property.type}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                         {property.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.dateList}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {property.dateList}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
@@ -223,7 +235,11 @@ export default function RentalPropertiesPage() {
           </table>
         </div>
 
-        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </AdminSidebar>
   );

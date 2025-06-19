@@ -1,24 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Search, Eye, Trash2, Ban } from "lucide-react"
-import AdminSidebar from "@/component/admin/sidebar"
-import Pagination from "@/component/admin/pagination"
-import { userApi, type User } from "@/lib/api/user"
-import { toast } from "react-hot-toast"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Eye, Trash2, Ban } from "lucide-react";
+import AdminSidebar from "@/component/admin/sidebar";
+import Pagination from "@/component/admin/pagination";
+import { userApi, type User } from "@/lib/api/user";
+import { toast } from "react-hot-toast";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function UserManagementPage() {
-  const router = useRouter()
-  const [users, setUsers] = useState<User[]>([])
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalCount, setTotalCount] = useState(0)
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
+  const router = useRouter();
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
   // Debounce search term
   useEffect(() => {
@@ -31,8 +31,8 @@ export default function UserManagementPage() {
   // Fetch users with search and pagination
   const fetchUsers = async () => {
     try {
-      setIsLoading(true)
-      
+      setIsLoading(true);
+
       // First, get dashboard stats for accurate total count
       const dashboardStats = await userApi.getDashboardStats();
       setTotalCount(dashboardStats.totalUsers);
@@ -40,7 +40,7 @@ export default function UserManagementPage() {
 
       // Then get paginated results
       const response = await userApi.listUsers({
-        role: 'customer',
+        role: "customer",
         name: debouncedSearchTerm || undefined,
         email: debouncedSearchTerm || undefined,
         skip: (currentPage - 1) * ITEMS_PER_PAGE,
@@ -48,23 +48,25 @@ export default function UserManagementPage() {
       });
 
       // Filter to ensure we only get customers
-      const customerUsers = response.filter(user => user.role === 'customer');
+      const customerUsers = response.filter((user) => user.role === "customer");
       setUsers(customerUsers);
 
       // If we're searching, update the total count based on filtered results
       if (debouncedSearchTerm) {
         const searchResults = await userApi.listAllUsers({
-          role: 'customer',
+          role: "customer",
           name: debouncedSearchTerm || undefined,
           email: debouncedSearchTerm || undefined,
         });
-        const filteredCount = searchResults.filter(user => user.role === 'customer').length;
+        const filteredCount = searchResults.filter(
+          (user) => user.role === "customer"
+        ).length;
         setTotalCount(filteredCount);
         setTotalPages(Math.ceil(filteredCount / ITEMS_PER_PAGE));
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Failed to fetch users');
+      console.error("Error fetching users:", error);
+      toast.error("Failed to fetch users");
     } finally {
       setIsLoading(false);
     }
@@ -75,28 +77,32 @@ export default function UserManagementPage() {
   }, [currentPage, debouncedSearchTerm]);
 
   const handleDelete = async (userId: number) => {
-    if (!confirm('Are you sure you want to delete this user?')) {
+    if (!confirm("Are you sure you want to delete this user?")) {
       return;
     }
 
     try {
       await userApi.deleteUser(userId);
-      toast.success('User deleted successfully');
+      toast.success("User deleted successfully");
       fetchUsers(); // Refresh the list
     } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user");
     }
   };
 
   const handleBanToggle = async (userId: number, currentlyActive: boolean) => {
     try {
       await userApi.toggleUserBan(userId, currentlyActive);
-      toast.success(currentlyActive ? 'User banned successfully' : 'User unbanned successfully');
+      toast.success(
+        currentlyActive
+          ? "User banned successfully"
+          : "User unbanned successfully"
+      );
       fetchUsers(); // Refresh the list
     } catch (error) {
-      console.error('Error toggling user ban:', error);
-      toast.error('Failed to update user status');
+      console.error("Error toggling user ban:", error);
+      toast.error("Failed to update user status");
     }
   };
 
@@ -174,7 +180,7 @@ export default function UserManagementPage() {
                       {user.name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.phone || 'N/A'}
+                      {user.phone || "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {user.email}
@@ -183,11 +189,11 @@ export default function UserManagementPage() {
                       <span
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           user.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {user.is_active ? 'Active' : 'Banned'}
+                        {user.is_active ? "Active" : "Banned"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -200,11 +206,15 @@ export default function UserManagementPage() {
                           <Trash2 size={18} />
                         </button>
                         <button
-                          onClick={() => handleBanToggle(user.user_id, user.is_active)}
+                          onClick={() =>
+                            handleBanToggle(user.user_id, user.is_active)
+                          }
                           className={`${
-                            user.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
+                            user.is_active
+                              ? "text-red-600 hover:text-red-900"
+                              : "text-green-600 hover:text-green-900"
                           }`}
-                          title={user.is_active ? 'Ban User' : 'Unban User'}
+                          title={user.is_active ? "Ban User" : "Unban User"}
                         >
                           <Ban size={18} />
                         </button>

@@ -14,7 +14,8 @@ from app.crud.crud_property import (
     get_owner_properties,
     get_property_stats,
     get_recommended_properties,
-    get_property_counts
+    get_property_counts,
+    get_related_properties
 )
 from app.models.models import User, PropertyCategory, City, District, Commune, Feature
 from app.models.property_schemas import (
@@ -50,6 +51,23 @@ def get_property_counts_handler(
     """
     logger.debug("Fetching property counts for admin")
     return get_property_counts(session=session)
+
+@router.get("/{property_id}/related", response_model=List[PropertyRead])
+def get_related_properties_handler(
+    property_id: int,
+    limit: int = Query(6, ge=1, le=10, description="Maximum number of related properties to return"),
+    session: Session = Depends(get_db_session)
+):
+    """
+    Get properties related to the specified property ID.
+    Related properties are based on same city, category, similar price range, and bedrooms.
+    """
+    logger.debug("Fetching related properties for property_id=%s, limit=%d", property_id, limit)
+    return get_related_properties(
+        session=session,
+        property_id=property_id,
+        limit=limit
+    )
 
 @router.get("/recommended", response_model=List[PropertyRead])
 def get_recommended_properties_handler(

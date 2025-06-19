@@ -1,5 +1,7 @@
 import logging
+from decimal import Decimal
 from sqlmodel import Session, select, func
+from collections import defaultdict
 from app.models.enums import UserRole, PropertyStatusEnum
 from app.models.property_schemas import (
     PropertyCreate, PropertyRead, PropertyUpdate,
@@ -18,6 +20,138 @@ from typing import Optional, List
 logger = logging.getLogger(__name__)
 
 
+def get_related_properties(
+    *,
+    session: Session,
+    property_id: int,
+    limit: int = 6
+) -> List[PropertyRead]:
+    """
+    Fetch properties related to the given property ID based on city and category.
+
+    Args:
+        session: SQLModel database session.
+        property_id: ID of the target property.
+        limit: Maximum number of related properties to return.
+
+    Returns:
+        List of PropertyRead objects for related properties.
+
+    Raises:
+        HTTPException: If the target property is not found or database error occurs.
+    """
+    try:
+        # Fetch target property with necessary relationships
+        target_property = session.exec(
+            select(Property)
+            .where(Property.property_id == property_id)
+            .options(
+                joinedload(Property.property_location),
+                joinedload(Property.property_category)
+            )
+        ).first()
+
+        if not target_property:
+            raise HTTPException(
+                status_code=404, detail=f"Property with ID {property_id} not found")
+
+        # Extract attributes for matching
+        city_id = target_property.property_location.city_id
+        category_id = target_property.category_id
+
+        # Log target property details
+        logger.debug(
+            "Target property: ID=%s, city_id=%s, category_id=%s",
+            property_id, city_id, category_id
+        )
+
+        # Build query for related properties
+        statement = (
+            select(Property)
+            .join(PropertyLocation)
+            .where(Property.property_id != property_id)  # Exclude target property
+            .where(PropertyLocation.city_id == city_id)
+            .where(Property.category_id == category_id)
+            .where(Property.status == PropertyStatusEnum.available)
+            .options(
+                selectinload(Property.property_location),
+                selectinload(Property.pricing),
+                selectinload(Property.features),
+                selectinload(Property.property_medias),
+                joinedload(Property.property_category)
+            )
+            .order_by(Property.listed_at.desc())  # Most recent first
+            .limit(limit)
+        )
+
+        properties = session.exec(statement).all()
+        logger.debug("Query returned %d properties", len(properties))
+
+        # Convert to PropertyRead objects
+        property_reads = []
+        for p in properties:
+            try:
+                location = p.property_location
+                city = session.exec(select(City).where(
+                    City.city_id == location.city_id)).first() if location else None
+                district = session.exec(select(District).where(
+                    District.district_id == location.district_id)).first() if location else None
+                commune = session.exec(select(Commune).where(
+                    Commune.commune_id == location.commune_id)).first() if location else None
+
+                location_read = None
+                if location:
+                    location_read = PropertyLocationRead(
+                        location_id=location.location_id,
+                        property_id=location.property_id,
+                        city_id=location.city_id,
+                        district_id=location.district_id,
+                        commune_id=location.commune_id,
+                        street_number=location.street_number,
+                        latitude=location.latitude,
+                        longitude=location.longitude,
+                        city_name=city.city_name if city else "Unknown",
+                        district_name=district.district_name if district else "Unknown",
+                        commune_name=commune.commune_name if commune else "Unknown"
+                    )
+
+                property_read = PropertyRead(
+                    property_id=p.property_id,
+                    title=p.title,
+                    description=p.description,
+                    bedrooms=p.bedrooms,
+                    bathrooms=p.bathrooms,
+                    land_area=p.land_area,
+                    floor_area=p.floor_area,
+                    status=p.status,
+                    updated_at=p.updated_at,
+                    listed_at=p.listed_at,
+                    user_id=p.user_id,
+                    category_name=p.property_category.category_name if p.property_category else None,
+                    rating=p.rating,
+                    pricing=PropertyPricingRead.model_validate(
+                        p.pricing) if p.pricing else None,
+                    location=location_read,
+                    media=[PropertyMediaRead.model_validate(
+                        m) for m in p.property_medias] if hasattr(p, "property_medias") else [],
+                    features=[FeatureRead.model_validate(
+                        f) for f in p.features] if hasattr(p, "features") else []
+                )
+                property_reads.append(property_read)
+            except Exception as e:
+                logger.warning(f"Error processing property {p.property_id}: {e}")
+                continue
+
+        logger.debug("Returning %d related properties", len(property_reads))
+        return property_reads
+
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_related_properties: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        logger.error(f"Unexpected error in get_related_properties: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail="Unexpected error occurred")
 
 def create_property(
     *,
@@ -359,9 +493,12 @@ def get_property_detail_by_id(
 
     # Build location response with names using the ids from PropertyLocation
     location = property.property_location
-    city = session.exec(select(City).where(City.city_id == location.city_id)).first()
-    district = session.exec(select(District).where(District.district_id == location.district_id)).first()
-    commune = session.exec(select(Commune).where(Commune.commune_id == location.commune_id)).first()
+    city = session.exec(select(City).where(
+        City.city_id == location.city_id)).first()
+    district = session.exec(select(District).where(
+        District.district_id == location.district_id)).first()
+    commune = session.exec(select(Commune).where(
+        Commune.commune_id == location.commune_id)).first()
 
     location_read = PropertyLocationRead(
         location_id=location.location_id,
@@ -394,10 +531,10 @@ def get_property_detail_by_id(
         rating=property.rating,
         pricing=PropertyPricingRead.model_validate(property.pricing),
         location=location_read,
-        media=[PropertyMediaRead.model_validate(m) for m in property.property_medias],
+        media=[PropertyMediaRead.model_validate(
+            m) for m in property.property_medias],
         features=[FeatureRead.model_validate(f) for f in property.features]
     )
-
 
 
 def get_property_media_by_id(*, session: Session, property_id: int) -> List[PropertyMediaRead]:
@@ -531,7 +668,6 @@ def get_property_locations_by_id(*, session: Session, property_id: Optional[int]
     return property_locations
 
 
-
 def search_properties(
     *,
     session: Session,
@@ -544,24 +680,11 @@ def search_properties(
     sort_order: Optional[str] = None,
     offset: int = 0,
     limit: int = 10
-) -> PaginatedPropertyRead:
+) -> "PaginatedPropertyRead":  # Use string literal for forward reference
     """
     Search and filter properties by keyword, location, and property type with sorting.
-    Args:
-        session: SQLModel database session.
-        keyword: Search term for title, description, or feature name.
-        city_id, district_id, commune_id: Filter by location IDs.
-        category_id: Filter by property type.
-        sort_by: Field to sort by (e.g., rent_price, bedrooms, floor_area, listed_at).
-        sort_order: Sort direction (asc or desc).
-        offset, limit: Pagination parameters.
-    Returns:
-        PaginatedPropertyRead with total count and list of PropertyRead objects.
-    Raises:
-        HTTPException: If a database error occurs or invalid sort parameters are provided.
     """
     try:
-        # Define valid sort fields
         valid_sort_fields = {
             'rent_price': PropertyPricing.rent_price,
             'bedrooms': Property.bedrooms,
@@ -569,8 +692,15 @@ def search_properties(
             'listed_at': Property.listed_at
         }
 
-        # Build query with eager loading
-        statement = select(Property).join(PropertyLocation).join(PropertyPricing).options(
+        # Start with selecting Property, and potentially the sort column
+        # if it's not already part of the Property model.
+        # For 'rent_price', we need to explicitly select it if we are using DISTINCT.
+        select_columns = [Property]
+        if sort_by == 'rent_price':
+            # Add rent_price to the select list
+            select_columns.append(PropertyPricing.rent_price)
+
+        statement = select(*select_columns).join(PropertyLocation).join(PropertyPricing).options(
             selectinload(Property.property_location),
             selectinload(Property.pricing),
             selectinload(Property.features),
@@ -578,7 +708,6 @@ def search_properties(
             joinedload(Property.property_category)
         )
 
-        # Apply keyword search
         if keyword:
             keyword_like = f"%{keyword}%"
             statement = statement.outerjoin(PropertyFeature).outerjoin(Feature)
@@ -588,19 +717,18 @@ def search_properties(
                 (Feature.feature_name.ilike(keyword_like))
             )
 
-        # Apply location filters
         if city_id:
             statement = statement.where(PropertyLocation.city_id == city_id)
         if district_id:
-            statement = statement.where(PropertyLocation.district_id == district_id)
+            statement = statement.where(
+                PropertyLocation.district_id == district_id)
         if commune_id:
-            statement = statement.where(PropertyLocation.commune_id == commune_id)
+            statement = statement.where(
+                PropertyLocation.commune_id == commune_id)
 
-        # Apply category filter
         if category_id:
             statement = statement.where(Property.category_id == category_id)
 
-        # Apply sorting
         if sort_by:
             if sort_by not in valid_sort_fields:
                 raise HTTPException(
@@ -614,6 +742,10 @@ def search_properties(
                 statement = statement.order_by(sort_column.asc())
 
         # Get total count
+        # For the count query, you might need a separate statement if the main statement
+        # has a complex distinct or eager loading that complicates counting.
+        # However, for this error, the count query itself isn't the problem.
+        # The subquery approach for count is generally robust.
         count_query = select(func.count()).select_from(statement.subquery())
         result = session.exec(count_query).first()
         total_count = result if result is not None else 0
@@ -621,19 +753,30 @@ def search_properties(
         if total_count == 0:
             return PaginatedPropertyRead(total=0, properties=[])
 
-        # Apply pagination
         statement = statement.offset(offset).limit(limit)
-        properties = session.exec(statement.distinct()).all()
+        # Apply distinct *after* ordering if you want the ordering to apply before distincting
+        # or, ensure the order by column is in the distinct selection
+        properties_raw = session.exec(statement).all()
 
-        # Convert to Pydantic models
+        # If you added PropertyPricing.rent_price to the select_columns,
+        # 'properties_raw' will contain tuples like (Property_object, rent_price).
+        # You'll need to adjust how you extract the Property object.
+        if sort_by == 'rent_price':
+            # Extract the Property object
+            properties = [item[0] for item in properties_raw]
+        else:
+            properties = properties_raw
+
         property_reads = []
         for p in properties:
             try:
-                # Fetch related location names
                 location = p.property_location
-                city = session.exec(select(City).where(City.city_id == location.city_id)).first() if location else None
-                district = session.exec(select(District).where(District.district_id == location.district_id)).first() if location else None
-                commune = session.exec(select(Commune).where(Commune.commune_id == location.commune_id)).first() if location else None
+                city = session.exec(select(City).where(
+                    City.city_id == location.city_id)).first() if location else None
+                district = session.exec(select(District).where(
+                    District.district_id == location.district_id)).first() if location else None
+                commune = session.exec(select(Commune).where(
+                    Commune.commune_id == location.commune_id)).first() if location else None
 
                 location_read = None
                 if location:
@@ -665,47 +808,58 @@ def search_properties(
                     user_id=p.user_id,
                     category_name=p.property_category.category_name if p.property_category else None,
                     rating=p.rating,
-                    pricing=PropertyPricingRead.model_validate(p.pricing) if p.pricing else None,
+                    pricing=PropertyPricingRead.model_validate(
+                        p.pricing) if p.pricing else None,
                     location=location_read,
-                    media=[PropertyMediaRead.model_validate(m) for m in p.property_medias] if hasattr(p, "property_medias") else [],
-                    features=[FeatureRead.model_validate(f) for f in p.features] if hasattr(p, "features") else []
+                    media=[PropertyMediaRead.model_validate(
+                        m) for m in p.property_medias] if hasattr(p, "property_medias") else [],
+                    features=[FeatureRead.model_validate(
+                        f) for f in p.features] if hasattr(p, "features") else []
                 )
                 property_reads.append(property_read)
-            except Exception:
+            except Exception as e:
+                # Log the specific error for debugging
+                print(f"Error processing property: {e}")
                 pass
 
         return PaginatedPropertyRead(total=total_count, properties=property_reads)
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        # Log the SQLAlchemy error for more details
+        print(f"SQLAlchemy Error: {e}")
         raise HTTPException(status_code=500, detail="Database error occurred")
-    except Exception:
-        raise HTTPException(status_code=500, detail="Unexpected error occurred")
+    except Exception as e:
+        # Log unexpected errors
+        print(f"Unexpected Error: {e}")
+        raise HTTPException(
+            status_code=500, detail="Unexpected error occurred")
 
 
 def validate_property_ids(property_ids: List[int]) -> None:
     """
     Validates the list of property IDs for comparison.
-    
+
     Args:
         property_ids (List[int]): List of property IDs.
-    
+
     Raises:
         HTTPException: If list is empty or exceeds limit.
     """
     if not property_ids:
         raise HTTPException(status_code=400, detail="No property IDs provided")
     if len(property_ids) > 5:
-        raise HTTPException(status_code=400, detail="Cannot compare more than 5 properties")
+        raise HTTPException(
+            status_code=400, detail="Cannot compare more than 5 properties")
 
 
 def check_properties_in_wishlist(session: Session, property_ids: List[int], user_id: int) -> None:
     """
     Ensures all requested properties are in the user's wishlist.
-    
+
     Args:
         session (Session): Database session.
         property_ids (List[int]): Property IDs to check.
         user_id (int): Authenticated user ID.
-    
+
     Raises:
         HTTPException: If any property is not in the wishlist.
     """
@@ -716,57 +870,76 @@ def check_properties_in_wishlist(session: Session, property_ids: List[int], user
     ).all()
 
     if len(wishlist_check) != len(property_ids):
-        raise HTTPException(status_code=403, detail="Some properties are not in your wishlist")
+        raise HTTPException(
+            status_code=403, detail="Some properties are not in your wishlist")
 
 
 def fetch_comparison_properties(session: Session, property_ids: List[int]):
     """
-    Fetches full property details including pricing, location, media, and features.
-    
+    Fetches full property details including pricing, location, and features.
+    Media is fetched separately to handle one-to-many relationships effectively.
+
     Args:
         session (Session): Database session.
         property_ids (List[int]): Property IDs to fetch.
-    
+
     Returns:
-        List[tuple]: Query result tuples of property data.
-    
+        List[tuple]: Query result tuples of property data (excluding media).
+
     Raises:
         HTTPException: If no properties are found.
     """
     statement = (
-        select(Property, PropertyPricing, PropertyLocation,
-               City, District, PropertyMedia)
+        select(Property, PropertyPricing, PropertyLocation, City, District)
         .join(PropertyPricing, PropertyPricing.property_id == Property.property_id)
         .join(PropertyLocation, PropertyLocation.property_id == Property.property_id)
         .join(City, City.city_id == PropertyLocation.city_id)
         .join(District, District.district_id == PropertyLocation.district_id)
-        .outerjoin(PropertyMedia, (PropertyMedia.property_id == Property.property_id) & (PropertyMedia.media_type == "image"))
-        .options(joinedload(Property.features).joinedload(Feature.properties))
+        .options(joinedload(Property.features)) # .joinedload(Feature.properties) is not needed here
         .where(Property.property_id.in_(property_ids))
     )
 
-    results = session.exec(statement).unique().all()
+    properties_data = session.exec(statement).unique().all()
 
-    if not results:
+    if not properties_data:
         raise HTTPException(status_code=404, detail="No properties found")
 
-    return results
+    # Fetch media separately to aggregate all media for each property
+    media_statement = (
+        select(PropertyMedia)
+        .where(PropertyMedia.property_id.in_(property_ids))
+        .where(PropertyMedia.media_type == "image")
+    )
+    media_results = session.exec(media_statement).all()
+
+    # Organize media by property_id
+    property_media_map = defaultdict(list)
+    for media_item in media_results:
+        property_media_map[media_item.property_id].append(media_item.media_url)
+
+    return properties_data, property_media_map
 
 
-def build_comparison_items(results) -> List[PropertyComparisonItem]:
+def build_comparison_items(results_tuple) -> List[PropertyComparisonItem]:
     """
-    Structures property data into comparison-ready format.
-    
+    Structures property data into comparison-ready format,
+    aggregating all media URLs for each property.
+
     Args:
-        results (List[tuple]): Raw query results.
-    
+        results_tuple (tuple): A tuple containing raw query results for properties
+                               and a dictionary mapping property_id to media URLs.
+
     Returns:
         List[PropertyComparisonItem]: Structured property data.
     """
+    properties_data, property_media_map = results_tuple
     comparison_data = []
-    for result in results:
-        property, pricing, location, city, district, media = result[:6]
+
+    for result in properties_data:
+        property, pricing, location, city, district = result
         features = [feature.feature_name for feature in property.features]
+        media_urls = property_media_map.get(property.property_id, [])
+
         comparison_data.append(PropertyComparisonItem(
             property_id=property.property_id,
             title=property.title,
@@ -777,7 +950,7 @@ def build_comparison_items(results) -> List[PropertyComparisonItem]:
             bathrooms=property.bathrooms,
             floor_area=property.floor_area,
             features=features,
-            media_url=media.media_url if media else None,
+            media_urls=media_urls,
             status=property.status
         ))
     return comparison_data
@@ -786,15 +959,15 @@ def build_comparison_items(results) -> List[PropertyComparisonItem]:
 def get_properties_for_comparison(session: Session, property_ids: List[int], user_id: int) -> List[PropertyComparisonItem]:
     """
     Retrieves and formats property data for comparison, ensuring they're in the user's wishlist.
-    
+
     Args:
         session (Session): Database session.
         property_ids (List[int]): Property IDs to compare.
         user_id (int): Authenticated user ID.
-    
+
     Returns:
         List[PropertyComparisonItem]: Detailed property comparison data.
-    
+
     Raises:
         HTTPException: On validation failure, missing wishlist entries, or not found.
     """
@@ -876,12 +1049,14 @@ def get_property_stats(
 
     try:
         total_owned = session.exec(
-            select(func.count()).select_from(Property).where(Property.user_id == user.user_id)
+            select(func.count()).select_from(Property).where(
+                Property.user_id == user.user_id)
         ).first() or 0
 
         total_rented = session.exec(
             select(func.count()).select_from(Property).where(
-                (Property.user_id == user.user_id) & (Property.status == PropertyStatusEnum.rented)
+                (Property.user_id == user.user_id) & (
+                    Property.status == PropertyStatusEnum.rented)
             )
         ).first() or 0
 
@@ -894,8 +1069,10 @@ def get_property_stats(
         raise HTTPException(status_code=500, detail="Database error occurred")
     except Exception as e:
         logger.error(f"Unexpected error in get_property_stats: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unexpected error occurred")
-    
+        raise HTTPException(
+            status_code=500, detail="Unexpected error occurred")
+
+
 def get_recommended_properties(
     *,
     session: Session,
@@ -921,7 +1098,8 @@ def get_recommended_properties(
     try:
         # Validate status if provided
         if status and status not in PropertyStatusEnum.__members__:
-            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid status: {status}")
 
         # Build query (ignore status if not provided)
         query = select(Property).where(Property.property_id.in_(property_ids))
@@ -954,14 +1132,16 @@ def get_recommended_properties(
                 )
                 result.append(prop_read)
             except HTTPException as e:
-                logger.warning(f"Skipping property {prop.property_id}: {e.detail}")
+                logger.warning(
+                    f"Skipping property {prop.property_id}: {e.detail}")
 
         logger.debug("Fetched %d recommended properties", len(result))
         return result
     except Exception as e:
         logger.error(f"Error in get_recommended_properties: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unexpected error occurred")
-    
+        raise HTTPException(
+            status_code=500, detail="Unexpected error occurred")
+
 
 def get_property_counts(
     *,
@@ -1007,4 +1187,5 @@ def get_property_counts(
         raise HTTPException(status_code=500, detail="Database error occurred")
     except Exception as e:
         logger.error(f"Unexpected error in get_property_counts: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unexpected error occurred")
+        raise HTTPException(
+            status_code=500, detail="Unexpected error occurred")

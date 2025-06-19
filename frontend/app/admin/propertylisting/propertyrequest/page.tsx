@@ -1,70 +1,74 @@
 "use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Search, Eye } from "lucide-react"
-import AdminSidebar from "@/component/admin/sidebar"
-import Pagination from "@/component/admin/pagination"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Eye } from "lucide-react";
+import AdminSidebar from "@/component/admin/sidebar";
+import Pagination from "@/component/admin/pagination";
 
 interface PropertyRequest {
-  id: string
-  title: string
-  type: string
-  status: string
-  dateList: string
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  dateList: string;
 }
 
 export default function PropertyRequestPage() {
-  const router = useRouter()
-  const [requests, setRequests] = useState<PropertyRequest[]>([])
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [totalPages, setTotalPages] = useState(1)
+  const router = useRouter();
+  const [requests, setRequests] = useState<PropertyRequest[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     const fetchRequests = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/property-requests?page=${currentPage}`,
+          `${
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+          }/api/property-requests?page=${currentPage}`,
           {
             credentials: "include",
             headers: {
               "Content-Type": "application/json",
             },
           }
-        )
+        );
 
         if (!response.ok) {
-          throw new Error("Failed to fetch property requests")
+          throw new Error("Failed to fetch property requests");
         }
 
-        const data = await response.json()
-        setRequests(data.items)
-        setTotalPages(Math.ceil(data.total / data.per_page))
+        const data = await response.json();
+        setRequests(data.items);
+        setTotalPages(Math.ceil(data.total / data.per_page));
       } catch (err) {
-        console.error("Error fetching property requests:", err)
-        setError("Failed to load property requests")
+        console.error("Error fetching property requests:", err);
+        setError("Failed to load property requests");
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchRequests()
-  }, [currentPage])
+    fetchRequests();
+  }, [currentPage]);
 
   // Filter property requests based on search term
   const filteredRequests = requests.filter(
     (request) =>
       request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.type.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  );
 
   const handleAccept = async (id: string) => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/property-requests/${id}/approve`,
+        `${
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+        }/api/property-requests/${id}/approve`,
         {
           method: "PATCH",
           credentials: "include",
@@ -72,28 +76,32 @@ export default function PropertyRequestPage() {
             "Content-Type": "application/json",
           },
         }
-      )
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to approve property request")
+        throw new Error("Failed to approve property request");
       }
 
       // Remove the approved request from the list
-      setRequests((prev) => prev.filter((request) => request.id !== id))
+      setRequests((prev) => prev.filter((request) => request.id !== id));
     } catch (err) {
-      console.error("Error approving property request:", err)
-      alert("Failed to approve property request")
+      console.error("Error approving property request:", err);
+      alert("Failed to approve property request");
     }
-  }
+  };
 
   const handleReject = async (id: string) => {
-    if (!window.confirm("Are you sure you want to reject this property request?")) {
-      return
+    if (
+      !window.confirm("Are you sure you want to reject this property request?")
+    ) {
+      return;
     }
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/property-requests/${id}/reject`,
+        `${
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+        }/api/property-requests/${id}/reject`,
         {
           method: "PATCH",
           credentials: "include",
@@ -101,30 +109,30 @@ export default function PropertyRequestPage() {
             "Content-Type": "application/json",
           },
         }
-      )
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to reject property request")
+        throw new Error("Failed to reject property request");
       }
 
       // Remove the rejected request from the list
-      setRequests((prev) => prev.filter((request) => request.id !== id))
+      setRequests((prev) => prev.filter((request) => request.id !== id));
     } catch (err) {
-      console.error("Error rejecting property request:", err)
-      alert("Failed to reject property request")
+      console.error("Error rejecting property request:", err);
+      alert("Failed to reject property request");
     }
-  }
+  };
 
   const handleView = (id: string) => {
-    router.push(`/admin/propertylisting/propertyrequest/${id}`)
-  }
+    router.push(`/admin/propertylisting/propertyrequest/${id}`);
+  };
 
   if (error) {
     return (
       <AdminSidebar>
         <div className="text-red-600">{error}</div>
       </AdminSidebar>
-    )
+    );
   }
 
   return (
@@ -203,15 +211,23 @@ export default function PropertyRequestPage() {
               ) : (
                 filteredRequests.map((request) => (
                   <tr key={request.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {request.id}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {request.title}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {request.type}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                         {request.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.dateList}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {request.dateList}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
@@ -242,7 +258,11 @@ export default function PropertyRequestPage() {
           </table>
         </div>
 
-        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </AdminSidebar>
   );

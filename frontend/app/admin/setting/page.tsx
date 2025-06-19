@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import AdminSidebar from "@/components/admin/sidebar";
+import AdminSidebar from "@/component/admin/sidebar";
 
 export default function AdminSettingPage() {
   const [selectedCurrency, setSelectedCurrency] = useState("$");

@@ -7,7 +7,7 @@ import { ChevronDown, Heart, Menu, User, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useWishlist } from "@/lib/hooks/usewishlist";
 import { useUser } from "@/lib/hooks/useUser";
-import { useRouter } from "next/navigation"; // <--- Import useRouter
+import { useRouter } from "next/navigation";
 
 interface HeaderProps {
   userType?: string;
@@ -20,7 +20,7 @@ export default function Header({ userType = "user" }: HeaderProps) {
   const [lastScrollY, setLastScrollY] = useState(0);
   const { wishlist } = useWishlist();
   const { user, isLoading, isAuthenticated } = useUser();
-  const router = useRouter(); // <--- Initialize useRouter
+  const router = useRouter();
 
   const languageDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -28,10 +28,16 @@ export default function Header({ userType = "user" }: HeaderProps) {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target as Node)) {
+      if (
+        languageDropdownRef.current &&
+        !languageDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsLanguageOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node)
+      ) {
         setIsMobileMenuOpen(false);
       }
     };
@@ -60,21 +66,29 @@ export default function Header({ userType = "user" }: HeaderProps) {
 
   // Function to get the first letter of the user's name
   const getFirstLetterOfName = (name: string | undefined | null) => {
-    if (name && typeof name === 'string' && name.trim().length > 0) {
+    if (name && typeof name === "string" && name.trim().length > 0) {
       return name.trim().charAt(0).toUpperCase();
     }
-    return ''; // Return empty string if no valid name
+    return ""; // Return empty string if no valid name
   };
 
   const userInitial = getFirstLetterOfName(user?.name);
 
   // --- Robust check for profile_picture_url validity ---
   let hasValidProfilePictureUrl = false;
-  if (user && typeof user.profile_picture_url === 'string' && user.profile_picture_url.trim().length > 0) {
+  if (
+    user &&
+    typeof user.profile_picture_url === "string" &&
+    user.profile_picture_url.trim().length > 0
+  ) {
     const urlString = user.profile_picture_url.trim();
     // Check if it starts with a leading slash or an absolute URL protocol
-    if (urlString.startsWith('/') || urlString.startsWith('http://') || urlString.startsWith('https://')) {
-        hasValidProfilePictureUrl = true;
+    if (
+      urlString.startsWith("/") ||
+      urlString.startsWith("http://") ||
+      urlString.startsWith("https://")
+    ) {
+      hasValidProfilePictureUrl = true;
     }
   }
   // ----------------------------------------------------
@@ -83,49 +97,78 @@ export default function Header({ userType = "user" }: HeaderProps) {
   const handleWishlistClick = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
       e.preventDefault(); // Prevent navigation
-      router.push('/login'); // Redirect to login page
-      // Optionally, you could also show an alert:
-      // alert("Please log in to view your wishlist.");
+      router.push("/login"); // Redirect to login page
     }
     setIsMobileMenuOpen(false); // Close mobile menu on click (for mobile)
   };
 
-
   return (
-    <header className={`bg-gradient-to-r from-green-700 to-green-800 text-white shadow-lg sticky top-0 z-50 transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
-      <div className="container mx-auto px-4 py-0.5 flex items-center justify-between">
+    <header
+      className={`bg-gradient-to-r from-green-700 to-green-800 text-white shadow-lg sticky top-0 z-50 transition-transform duration-300 ${
+        isVisible ? "translate-y-0" : "-translate-y-full"
+      } h-16 flex items-center`}
+    >
+      <div className="container mx-auto px-4 py-0 flex items-center justify-between h-full">
         {/* Logo */}
-        <Link href="/user" className="flex items-center flex-shrink-0">
-          <Image src="/logowhite.png" alt="NestedHub Logo" width={100} height={50} className="h-auto w-auto" />
+        <Link href="/user" className="flex items-center flex-shrink-0 h-full">
+          <Image
+            src="/logowhite.png"
+            alt="NestedHub Logo"
+            width={120} // Slightly increased width for better visibility
+            height={40} // Constrain height
+            className="w-auto h-10 object-contain" // Use object-contain and set a fixed height
+          />
         </Link>
 
         {/* Navigation - Desktop */}
-        <nav className="hidden md:flex items-center space-x-12 text-lg font-medium">
-          <Link href="/user" className="hover:text-green-200 transition-colors duration-200">
+        <nav className="hidden md:flex items-center space-x-10 text-lg font-medium">
+          <Link
+            href="/user"
+            className="hover:text-green-200 transition-colors duration-200"
+          >
             Home
           </Link>
-          <Link href="/user/rent" className="hover:text-green-200 transition-colors duration-200">
+          <Link
+            href="/user/rent"
+            className="hover:text-green-200 transition-colors duration-200"
+          >
             Rent
           </Link>
-          <Link href="/user/about" className="hover:text-green-200 transition-colors duration-200">
+          <Link
+            href="/user/about"
+            className="hover:text-green-200 transition-colors duration-200"
+          >
             About Us
           </Link>
-          <Link href="/user/faq" className="hover:text-green-200 transition-colors duration-200">
+          <Link
+            href="/user/faq"
+            className="hover:text-green-200 transition-colors duration-200"
+          >
             FAQ
           </Link>
         </nav>
 
         {/* Right Section */}
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-4 sm:space-x-6">
           {/* Language Selector */}
           <div className="relative" ref={languageDropdownRef}>
             <button
               className="flex items-center space-x-1 text-sm font-medium hover:text-green-200 transition-colors duration-200 py-1 px-2 rounded-md"
               onClick={() => setIsLanguageOpen(!isLanguageOpen)}
             >
-              <Image src="/english.png" alt="English" width={24} height={18} className="rounded-sm object-cover" />
+              <Image
+                src="/english.png"
+                alt="English"
+                width={20} // Adjusted flag size
+                height={15} // Adjusted flag size
+                className="rounded-sm object-cover"
+              />
               <span className="hidden sm:inline">English</span>
-              <ChevronDown className={`h-4 w-4 transform transition-transform ${isLanguageOpen ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`h-4 w-4 transform transition-transform ${
+                  isLanguageOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
 
             {isLanguageOpen && (
@@ -158,7 +201,10 @@ export default function Header({ userType = "user" }: HeaderProps) {
 
           {/* Wishlist - Desktop */}
           {isAuthenticated ? (
-            <Link href="/user/wishlist" className="text-white hover:text-green-200 relative transition-colors duration-200">
+            <Link
+              href="/user/wishlist"
+              className="text-white hover:text-green-200 relative transition-colors duration-200"
+            >
               <Heart className="h-6 w-6" />
               {wishlist.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-green-800">
@@ -167,13 +213,11 @@ export default function Header({ userType = "user" }: HeaderProps) {
               )}
             </Link>
           ) : (
-            // Render a disabled-looking link or a button that redirects to login
-            // Or remove the link altogether if you don't want it visible
             <button
-              onClick={handleWishlistClick} // Use a button and handle the click
-              className="text-white relative opacity-50 cursor-not-allowed" // Add disabled styling
+              onClick={handleWishlistClick}
+              className="text-white relative opacity-50 cursor-not-allowed"
               aria-label="Wishlist (Login required)"
-              title="Login to view your wishlist" // Tooltip for better UX
+              title="Login to view your wishlist"
             >
               <Heart className="h-6 w-6" />
               {wishlist.length > 0 && (
@@ -184,19 +228,20 @@ export default function Header({ userType = "user" }: HeaderProps) {
             </button>
           )}
 
-
           {/* User Profile / Sign In */}
           {isLoading ? (
-            <div className="flex items-center space-x-2 bg-white rounded-full p-2 animate-pulse">
+            <div className="flex items-center space-x-2 bg-white rounded-full p-1.5 animate-pulse">
               <Loader2 className="h-5 w-5 text-green-800 animate-spin" />
-              <span className="text-green-800 text-sm font-medium hidden sm:inline">Loading...</span>
+              <span className="text-green-800 text-sm font-medium hidden sm:inline">
+                Loading...
+              </span>
             </div>
           ) : isAuthenticated && user ? (
             <Link href="/user/profile" className="flex items-center space-x-2 group">
               <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white group-hover:border-green-200 transition-colors duration-200 flex items-center justify-center">
                 {hasValidProfilePictureUrl ? (
                   <Image
-                    src={user.profile_picture_url as string} // Assert as string, as it's guaranteed by the check
+                    src={user.profile_picture_url as string}
                     alt={user.name || "User"}
                     fill
                     sizes="32px"
@@ -208,11 +253,18 @@ export default function Header({ userType = "user" }: HeaderProps) {
                   </div>
                 )}
               </div>
-              <span className="hidden sm:inline text-sm font-medium group-hover:text-green-200 transition-colors duration-200">{user.name || "User"}</span>
+              <span className="hidden sm:inline text-sm font-medium group-hover:text-green-200 transition-colors duration-200">
+                {user.name || "User"}
+              </span>
             </Link>
           ) : (
-            <Link href="/login" className="flex items-center space-x-1 hover:text-green-200 transition-colors duration-200">
-              <div className="bg-white rounded-full p-2">
+            <Link
+              href="/login"
+              className="flex items-center space-x-1 hover:text-green-200 transition-colors duration-200"
+            >
+              <div className="bg-white rounded-full p-1.5">
+                {" "}
+                {/* Adjusted padding here */}
                 <User className="h-5 w-5 text-green-800" />
               </div>
               <span className="hidden sm:inline text-sm font-medium">Sign In</span>
@@ -232,7 +284,10 @@ export default function Header({ userType = "user" }: HeaderProps) {
 
       {/* Mobile Menu Overlay (Off-canvas or Full-screen) */}
       {isMobileMenuOpen && (
-        <div ref={mobileMenuRef} className="md:hidden fixed inset-0 bg-green-900/95 backdrop-blur-sm z-40 flex flex-col p-6">
+        <div
+          ref={mobileMenuRef}
+          className="md:hidden fixed inset-0 bg-green-900/95 backdrop-blur-sm z-40 flex flex-col p-6"
+        >
           <div className="flex justify-end mb-8">
             <button
               onClick={() => setIsMobileMenuOpen(false)}
@@ -243,22 +298,41 @@ export default function Header({ userType = "user" }: HeaderProps) {
             </button>
           </div>
           <nav className="flex flex-col items-center space-y-6 text-xl font-semibold">
-            <Link href="/user" className="text-white hover:text-green-200" onClick={() => setIsMobileMenuOpen(false)}>
+            <Link
+              href="/user"
+              className="text-white hover:text-green-200"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
               Home
             </Link>
-            <Link href="/user/rent" className="text-white hover:text-green-200" onClick={() => setIsMobileMenuOpen(false)}>
+            <Link
+              href="/user/rent"
+              className="text-white hover:text-green-200"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
               Rent
             </Link>
-            <Link href="/user/about" className="text-white hover:text-green-200" onClick={() => setIsMobileMenuOpen(false)}>
+            <Link
+              href="/user/about"
+              className="text-white hover:text-green-200"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
               About Us
             </Link>
-            <Link href="/user/faq" className="text-white hover:text-green-200" onClick={() => setIsMobileMenuOpen(false)}>
+            <Link
+              href="/user/faq"
+              className="text-white hover:text-green-200"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
               FAQ
             </Link>
-            {/* Add user profile/sign in for mobile if needed */}
             {isAuthenticated && user ? (
               <>
-                <Link href="/user/profile" className="flex items-center space-x-2 text-white hover:text-green-200" onClick={() => setIsMobileMenuOpen(false)}>
+                <Link
+                  href="/user/profile"
+                  className="flex items-center space-x-2 text-white hover:text-green-200"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
                   <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white flex items-center justify-center">
                     {hasValidProfilePictureUrl ? (
                       <Image
@@ -276,22 +350,25 @@ export default function Header({ userType = "user" }: HeaderProps) {
                   </div>
                   <span>{user.name || "User"}</span>
                 </Link>
-                {/* Mobile Wishlist link (only if authenticated) */}
-                <Link href="/user/wishlist" className="flex items-center space-x-2 text-white hover:text-green-200" onClick={() => setIsMobileMenuOpen(false)}>
+                <Link
+                  href="/user/wishlist"
+                  className="flex items-center space-x-2 text-white hover:text-green-200"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
                   <Heart className="h-6 w-6" />
                   <span>Wishlist ({wishlist.length})</span>
                 </Link>
               </>
             ) : (
-              <Link href="/login" className="flex items-center space-x-2 text-white hover:text-green-200" onClick={() => setIsMobileMenuOpen(false)}>
+              <Link
+                href="/login"
+                className="flex items-center space-x-2 text-white hover:text-green-200"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
                 <User className="h-6 w-6" />
                 <span>Sign In</span>
               </Link>
             )}
-            {/* If you still want the mobile wishlist link to appear when not logged in,
-                but behave like the desktop one (redirect to login), you'd add it here
-                and use the `handleWishlistClick` on it.
-            */}
           </nav>
         </div>
       )}
