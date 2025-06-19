@@ -1,44 +1,17 @@
-# FROM node:18.18.0-alpine
-
-# WORKDIR /app
-
-# # Copy package files
-# COPY package.json package-lock.json* ./
-
-# # Install dependencies
-# RUN npm ci
-
-# # Copy the rest of the code
-# COPY . .
-
-# ENV NODE_ENV=development
-# EXPOSE 3000
-
-# CMD ["npm", "run", "dev"]
-# Use official Node.js base image as build stage
-FROM node:18.18.0-alpine AS base
+FROM node:18.20.2-alpine3.19
 
 WORKDIR /app
 
+# Copy package files
 COPY package.json package-lock.json* ./
+
+# Install dependencies
 RUN npm ci
 
+# Copy the rest of the code
 COPY . .
 
-RUN npm run build
-
-# Runner stage (production image)
-FROM node:18.18.0-alpine AS runner
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-COPY --from=base /app/public ./public
-COPY --from=base /app/.next ./.next
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/package.json ./package.json
-
+ENV NODE_ENV=development
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "dev"]

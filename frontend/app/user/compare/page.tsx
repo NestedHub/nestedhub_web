@@ -2,7 +2,7 @@
 "use client"; // This component needs to be a Client Component to use hooks like useSearchParams
 
 import { useSearchParams } from "next/navigation"; // For App Router's useSearchParams
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react"; // Import Suspense
 import { usePropertyComparison } from "@/lib/hooks/usePropertyComparison"; // Your plain React hook for comparison
 import { XCircle } from "lucide-react";
 import Link from "next/link"; // For linking back to the wishlist
@@ -29,7 +29,8 @@ interface PropertyComparisonDisplayItem {
   // category_name: string;
 }
 
-export default function ComparePage() {
+// Create a separate component that uses useSearchParams
+function ComparePageContent() {
   const searchParams = useSearchParams();
   const [idsToCompare, setIdsToCompare] = useState<number[]>([]);
 
@@ -296,5 +297,14 @@ export default function ComparePage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+// Export the main page component wrapped with Suspense
+export default function ComparePage() {
+  return (
+    <Suspense fallback={<div>Loading comparison page...</div>}>
+      <ComparePageContent />
+    </Suspense>
   );
 }

@@ -5,32 +5,27 @@ import { useState, useEffect } from "react";
 import Header from "@/component/user/header";
 import Footer from "@/component/user/footer";
 import { useProperty } from "@/lib/hooks/useProperty";
-// REMOVED: No longer need to use useReviews directly here, as PropertyReviewsSection handles it internally
-// import { useReviews } from "@/lib/hooks/useReviews";
 import { useUserDetail } from "@/lib/hooks/useUserDetail";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2, Heart, X } from "lucide-react";
 
-// Import wishlist-related hooks/utils
 import { useUser } from "@/lib/hooks/useUser";
 import {
   getUserWishlist,
   addPropertyToWishlist,
   removePropertyFromWishlist,
 } from "@/lib/utils/wishlist-api";
-import { WishListResponse } from "@/lib/types"; // Assuming WishListResponse is defined here
+import { WishListResponse } from "@/lib/types";
 
-// Import property data hook (used for fetching the main property AND related ones)
 import { usePropertyData } from "@/lib/hooks/usePropertyData";
 
-// Import modularized components
 import { PropertyImageGallery } from "@/component/user/property-detail/PropertyImageGallery";
 import { PropertyDetailsSection } from "@/component/user/property-detail/PropertyDetailsSection";
 import { PropertyDescription } from "@/component/user/property-detail/PropertyDescription";
 import { PropertyOverviewTable } from "@/component/user/property-detail/PropertyOverviewTable";
 import { PropertyFeaturesBadges } from "@/component/user/property-detail/PropertyFeaturesBadges";
 import { PropertyLocationMap } from "@/component/user/property-detail/PropertyLocationMap";
-import { PropertyReviewsSection } from "@/component/user/property-detail/PropertyReviewsSection"; // This component now manages its own review fetching
+import { PropertyReviewsSection } from "@/component/user/property-detail/PropertyReviewsSection";
 import { BookingFormCard } from "@/component/user/property-detail/BookingFormCard";
 import { RelatedPropertiesSection } from "@/component/user/property-detail/RelatedPropertiesSection";
 
@@ -39,26 +34,22 @@ export default function PropertyDetailPage() {
   const router = useRouter();
   const propertyId =
     typeof params.propertyId === "string" ? params.propertyId : "";
-  const propertyIdAsNumber = propertyId ? parseInt(propertyId) : null; // Convert to number for hooks
+  const propertyIdAsNumber = propertyId ? parseInt(propertyId) : null;
 
   const { isAuthenticated, isLoading: isUserLoading } = useUser();
   const { property, isLoading, error } = useProperty(propertyId);
-  // REMOVED: useReviews is now internal to PropertyReviewsSection
-  // const { reviews, isLoadingReviews, errorReviews } = useReviews(propertyId ? parseInt(propertyId) : null);
   const { user: owner } = useUserDetail(property?.user_id);
 
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [loadingWishlistStatus, setLoadingWishlistStatus] = useState(true);
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
 
-  // --- New state for modal visibility ---
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
-  // --- Fetch Related Properties ---
   const relatedPropertyFilters = property
     ? {
-        // category_id: property.category_id?.toString(), // Uncomment if available and needed
-        // city_id: property.location?.city_id?.toString(), // Example of filtering by location
+        // category_id: property.category_id?.toString(),
+        // city_id: property.location?.city_id?.toString(),
       }
     : {};
 
@@ -71,17 +62,15 @@ export default function PropertyDetailPage() {
     relatedPropertyFilters,
     0,
     5,
-    !property // Skip initial fetch until the main property data is loaded
+    !property
   );
 
-  // Filter out the current property from related properties if it's included
   const filteredRelatedProperties = relatedProperties
     .filter((p) => p.id !== propertyId)
     .slice(0, 4);
 
   useEffect(() => {
     if (!propertyIdAsNumber || isUserLoading) {
-      // Use propertyIdAsNumber
       return;
     }
 
@@ -91,7 +80,7 @@ export default function PropertyDetailPage() {
         if (isAuthenticated) {
           const wishlist = await getUserWishlist();
           const currentPropertyIsWishlisted = (wishlist ?? []).some(
-            (item: WishListResponse) => item.property_id === propertyIdAsNumber // Use propertyIdAsNumber
+            (item: WishListResponse) => item.property_id === propertyIdAsNumber
           );
           setIsWishlisted(currentPropertyIsWishlisted);
         } else {
@@ -106,7 +95,7 @@ export default function PropertyDetailPage() {
     };
 
     checkWishlistStatus();
-  }, [propertyIdAsNumber, isAuthenticated, isUserLoading]); // Add propertyIdAsNumber to dependencies
+  }, [propertyIdAsNumber, isAuthenticated, isUserLoading]);
 
   const handleToggleWishlist = async () => {
     if (!isAuthenticated) {
@@ -115,7 +104,7 @@ export default function PropertyDetailPage() {
       return;
     }
 
-    if (isTogglingWishlist || !propertyIdAsNumber) return; // Add check for propertyIdAsNumber
+    if (isTogglingWishlist || !propertyIdAsNumber) return;
 
     setIsTogglingWishlist(true);
     const previousWishlistedState = isWishlisted;
@@ -123,12 +112,12 @@ export default function PropertyDetailPage() {
 
     try {
       if (!previousWishlistedState) {
-        await addPropertyToWishlist(propertyIdAsNumber); // Use propertyIdAsNumber
+        await addPropertyToWishlist(propertyIdAsNumber);
         console.log(
           `Successfully added property ${propertyIdAsNumber} to wishlist.`
         );
       } else {
-        await removePropertyFromWishlist(propertyIdAsNumber); // Use propertyIdAsNumber
+        await removePropertyFromWishlist(propertyIdAsNumber);
         console.log(
           `Successfully removed property ${propertyIdAsNumber} from wishlist.`
         );
@@ -175,6 +164,9 @@ export default function PropertyDetailPage() {
       </div>
     );
   }
+
+  // Determine if the property is available for booking
+  const isPropertyAvailable = property.status === 'available';
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -239,17 +231,22 @@ export default function PropertyDetailPage() {
           <PropertyFeaturesBadges features={property.features} />
 
           <div className="mt-8">
-            <button
-              onClick={() => setIsBookingModalOpen(true)}
-              className="w-full bg-green-600 text-white py-3 px-6 rounded-lg text-xl font-semibold hover:bg-green-700 transition-colors duration-200 shadow-md"
-            >
-              Check Availability & Book
-            </button>
+            {isPropertyAvailable ? (
+              <button
+                onClick={() => setIsBookingModalOpen(true)}
+                className="w-full bg-green-600 text-white py-3 px-6 rounded-lg text-xl font-semibold hover:bg-green-700 transition-colors duration-200 shadow-md"
+              >
+                Check Availability & Book
+              </button>
+            ) : (
+              <div className="w-full bg-gray-300 text-gray-700 py-3 px-6 rounded-lg text-xl font-semibold text-center cursor-not-allowed shadow-md">
+                Property Currently Rented
+              </div>
+            )}
           </div>
 
           <PropertyLocationMap location={property.location} />
-          {/* CORRECTED: Pass propertyId and isAuthenticated to PropertyReviewsSection */}
-          {propertyIdAsNumber && ( // Only render if propertyIdAsNumber is valid
+          {propertyIdAsNumber && (
             <PropertyReviewsSection
               propertyId={propertyIdAsNumber}
               isAuthenticated={isAuthenticated}
@@ -268,7 +265,7 @@ export default function PropertyDetailPage() {
 
       <Footer />
 
-      {isBookingModalOpen && (
+      {isBookingModalOpen && isPropertyAvailable && ( // Only open modal if property is available
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 opacity-100">
             <button
@@ -282,7 +279,8 @@ export default function PropertyDetailPage() {
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Book Your Stay
               </h2>
-              <BookingFormCard propertyId={String(property.property_id)} />
+              {/* Pass the property status to the BookingFormCard */}
+              <BookingFormCard propertyId={String(property.property_id)} propertyStatus={property.status} />
             </div>
           </div>
         </div>

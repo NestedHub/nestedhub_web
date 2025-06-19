@@ -1,6 +1,6 @@
 // viewingRequestsApi.ts
 
-// --- Type Definitions (remain the same) ---
+// --- Type Definitions ---
 export interface ViewingRequestResponse {
   request_id: number;
   user_id: number;
@@ -8,16 +8,19 @@ export interface ViewingRequestResponse {
   requested_time: string; // ISO 8601 string
   status: 'pending' | 'accepted' | 'denied';
   created_at: string; // ISO 8601 string
+  message?: string; // ADDED: Optional message string
 }
 
 export interface ViewingRequestCreate {
   property_id: number;
   requested_time: string; // ISO 8601 string
+  message?: string; // ADDED: Optional message string
 }
 
 export interface ViewingRequestUpdate {
   requested_time?: string; // ISO 8601 string
   status?: 'pending' | 'accepted' | 'denied'; // Optional, might be restricted by role
+  message?: string; // ADDED: Optional message string
 }
 
 export interface SuccessMessageResponse {

@@ -217,5 +217,4 @@ export default function PropertyOwnerRequestPage() {
       </div>
     </AdminSidebar>
   );
-  );
 }

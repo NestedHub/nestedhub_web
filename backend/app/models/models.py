@@ -209,6 +209,9 @@ class ViewingRequest(SQLModel, table=True):
     requested_time: datetime = Field(...)
     status: ViewingRequestStatusEnum = Field(
         default=ViewingRequestStatusEnum.pending)
+    # Added message column
+    message: Optional[str] = Field(default=None, sa_column=Column(
+        Text), description="Optional message from the user regarding the viewing request")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc))
     user: "User" = Relationship(back_populates="viewing_requests")

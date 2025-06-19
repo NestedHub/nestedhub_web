@@ -1,5 +1,5 @@
-import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
-import PropertyTable from "@/components/dashoboadpropertyowner/propertytable";
+import Sidebar from "@/component/dashoboadpropertyowner/sidebar";
+import PropertyTable from "@/component/dashoboadpropertyowner/propertytable";
 
 export default function PropertyPage() {
   return (

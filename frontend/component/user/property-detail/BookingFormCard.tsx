@@ -5,37 +5,36 @@ import { Card } from "@/component/ui/card";
 import { Button } from "@/component/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/component/ui/popover";
 import { Calendar } from "@/component/ui/calendar";
-import { Loader2, CalendarDays, Clock, Info } from "lucide-react"; // Added Info icon
+import { Textarea } from "@/components/ui/textarea"; // Import Textarea component
+import { Loader2, CalendarDays, Clock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react"; // Added useMemo
+import { useState, useEffect, useMemo } from "react";
 import { useUser } from "@/lib/hooks/useUser";
-import { useCreateViewingRequest, useUserViewingRequests} from '@/lib/hooks/useViewingRequests'; // Adjusted import
+import { useCreateViewingRequest, useUserViewingRequests } from '@/lib/hooks/useViewingRequests';
 import { ViewingRequestResponse } from "@/lib/api/viewingrequest";
 
 interface BookingFormCardProps {
   propertyId: string;
+  propertyStatus: string; // Add propertyStatus prop
 }
 
-export function BookingFormCard({ propertyId }: BookingFormCardProps) {
+export function BookingFormCard({ propertyId, propertyStatus }: BookingFormCardProps) {
   const { isAuthenticated, isLoading: isLoadingAuth } = useUser();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>("10:00");
+  const [message, setMessage] = useState<string>(""); // ADDED: State for the message
 
   const propIdAsNumber = parseInt(propertyId, 10);
 
-  // Hooks for API interaction
   const { mutate: createRequest, loading: isBookingLoading, error: bookingError } = useCreateViewingRequest();
   const { data: userRequests, loading: loadingUserRequests, error: userRequestsError, refetch: refetchUserRequests } = useUserViewingRequests();
 
-  // State for user-facing messages (success/error)
   const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  // Memoized value for the active request for THIS property
   const activeRequestForThisProperty = useMemo<ViewingRequestResponse | undefined>(() => {
     if (userRequests && !loadingUserRequests) {
-      // Find the first pending or accepted request for the current property
       return userRequests.find(
         (request) =>
           request.property_id === propIdAsNumber &&
@@ -45,17 +44,14 @@ export function BookingFormCard({ propertyId }: BookingFormCardProps) {
     return undefined;
   }, [userRequests, loadingUserRequests, propIdAsNumber]);
 
-  // Determine if there's an active request based on the memoized value
   const hasActiveRequest = !!activeRequestForThisProperty;
 
-  // Clear booking message when inputs change, unless there's an active request preventing action
   useEffect(() => {
     if (!hasActiveRequest) {
       setBookingMessage(null);
     }
-  }, [selectedDate, selectedTime, hasActiveRequest]);
+  }, [selectedDate, selectedTime, message, hasActiveRequest]); // ADDED `message` to dependencies
 
-  // Handle errors from fetching user requests
   useEffect(() => {
     if (userRequestsError) {
       setBookingMessage({ type: 'error', text: 'Failed to load your existing viewing requests.' });
@@ -64,9 +60,12 @@ export function BookingFormCard({ propertyId }: BookingFormCardProps) {
 
 
   const handleBookingRequest = async () => {
-    // Basic validation before attempting to book
     if (!isAuthenticated) {
       setBookingMessage({ type: 'error', text: 'Please log in to book a viewing request.' });
+      return;
+    }
+    if (propertyStatus !== 'available') {
+      setBookingMessage({ type: 'error', text: 'This property is currently not available for viewing requests.' });
       return;
     }
     if (!selectedDate || !selectedTime) {
@@ -75,44 +74,44 @@ export function BookingFormCard({ propertyId }: BookingFormCardProps) {
     }
     if (hasActiveRequest) {
       setBookingMessage({ type: 'error', text: 'You already have an active viewing request for this property.' });
-      return; // Prevent duplicate submission
+      return;
     }
     if (isNaN(propIdAsNumber)) {
       setBookingMessage({ type: 'error', text: 'Property ID is invalid for booking.' });
       return;
     }
 
-    setBookingMessage(null); // Clear previous messages
+    setBookingMessage(null);
 
     try {
-      // Construct ISO string for requested time
       const dateTime = new Date(selectedDate);
       const [hours, minutes] = selectedTime.split(':').map(Number);
       dateTime.setHours(hours, minutes, 0, 0);
       const requested_time_iso = dateTime.toISOString();
 
-      // Call the mutation function from the hook
-      await createRequest({ property_id: propIdAsNumber, requested_time: requested_time_iso });
+      await createRequest({
+        property_id: propIdAsNumber,
+        requested_time: requested_time_iso,
+        message: message.trim() === "" ? undefined : message.trim() // ADDED: Include message, make it undefined if empty
+      });
 
       setBookingMessage({ type: 'success', text: 'Your viewing request has been sent successfully! The property owner will contact you soon.' });
-      setSelectedDate(undefined); // Reset form
-      setSelectedTime("10:00"); // Reset form
-      refetchUserRequests(); // Crucial: Refetch user requests to update `hasActiveRequest` state
+      setSelectedDate(undefined);
+      setSelectedTime("10:00");
+      setMessage(""); // Reset message field
+      refetchUserRequests();
     } catch (err: any) {
       console.error("Booking failed:", err);
-      // Use bookingError from hook, or fallback message
       setBookingMessage({ type: 'error', text: bookingError?.message || 'Failed to send viewing request. Please try again.' });
     }
   };
 
-  // Determine overall loading state for the card content
   const overallLoading = isLoadingAuth || loadingUserRequests;
 
   return (
     <Card className="p-6 shadow-md border-green-200 bg-green-50">
       <h3 className="text-xl font-bold text-green-800 mb-4">Book a Viewing</h3>
 
-      {/* --- Initial Loading / Authentication Check --- */}
       {overallLoading ? (
         <div className="flex flex-col items-center justify-center py-4 text-gray-600">
           <Loader2 className="h-6 w-6 text-green-600 animate-spin mb-2" />
@@ -129,8 +128,17 @@ export function BookingFormCard({ propertyId }: BookingFormCardProps) {
             </Button>
           </Link>
         </div>
+      ) : propertyStatus !== 'available' ? ( // New condition to check property status
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md flex items-start space-x-3">
+          <Info className="h-5 w-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Property Not Available for Viewing</p>
+            <p className="text-sm">
+              This property is currently **{propertyStatus}** and cannot be booked for a viewing.
+            </p>
+          </div>
+        </div>
       ) : (
-        /* --- Authenticated User - Check for Active Request or Show Form --- */
         <div className="space-y-4">
           {hasActiveRequest ? (
             <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-md flex items-start space-x-3">
@@ -148,6 +156,11 @@ export function BookingFormCard({ propertyId }: BookingFormCardProps) {
                     {activeRequestForThisProperty?.requested_time ? format(new Date(activeRequestForThisProperty.requested_time), "MMM dd, yyyy 'at' hh:mm a") : 'an unconfirmed time'}.
                   </span>
                 </p>
+                {activeRequestForThisProperty?.message && ( // Display message if it exists
+                  <p className="text-sm mt-2 text-gray-600 italic">
+                    Your message: "{activeRequestForThisProperty.message}"
+                  </p>
+                )}
                 <p className="text-sm mt-2">
                   Please wait for the owner's response or check your {' '}
                   <Link href="/user/viewing-requests" className="font-semibold underline text-blue-600 hover:text-blue-800">
@@ -158,7 +171,6 @@ export function BookingFormCard({ propertyId }: BookingFormCardProps) {
               </div>
             </div>
           ) : (
-            /* --- No Active Request - Show Booking Form --- */
             <>
               <div>
                 <label htmlFor="viewing-date" className="block text-sm font-medium text-gray-700 mb-2">
@@ -183,7 +195,6 @@ export function BookingFormCard({ propertyId }: BookingFormCardProps) {
                       selected={selectedDate}
                       onSelect={setSelectedDate}
                       initialFocus
-                      // Disable past dates and dates beyond 3 months from now
                       disabled={(date) => date < new Date() || date > new Date(new Date().setMonth(new Date().getMonth() + 3))}
                     />
                   </PopoverContent>
@@ -209,7 +220,20 @@ export function BookingFormCard({ propertyId }: BookingFormCardProps) {
                 </div>
               </div>
 
-              {/* Display booking messages (success/error from submission) */}
+              {/* ADDED: Textarea for the message */}
+              <div>
+                <label htmlFor="viewing-message" className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Message (Optional):
+                </label>
+                <Textarea
+                  id="viewing-message"
+                  placeholder="e.g., 'I am very interested in this property and would like to move in by next month.'"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="min-h-[80px]"
+                />
+              </div>
+
               {bookingMessage && (
                 <div className={`text-sm text-center p-2 rounded-md ${bookingMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                   {bookingMessage.text}

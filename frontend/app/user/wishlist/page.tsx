@@ -57,8 +57,12 @@ interface DisplayProperty {
 }
 
 export default function WishlistPage() {
+  console.log("WishlistPage: Component rendering."); // Debug 1
+
   const router = useRouter(); // Initialize router
   const { wishlist, isLoading, error, removeProperty, refetchWishlist } = useWishlist();
+
+  console.log("WishlistPage: useWishlist hook state - isLoading:", isLoading, "error:", error, "wishlist:", wishlist); // Debug 2
 
   // Use the new property selection hook
   const {
@@ -87,13 +91,16 @@ export default function WishlistPage() {
   // Fetch detailed property information for each item in the wishlist
   const fetchDetailedProperties = useCallback(
     async (currentWishlist: WishListResponse[]) => {
+      console.log("fetchDetailedProperties: Starting to fetch details. Current wishlist:", currentWishlist); // Debug 3
       setIsLoadingDetails(true);
       setErrorDetails(null);
       try {
         const detailedPropsPromises = currentWishlist.map(async (item) => {
+          console.log(`fetchDetailedProperties: Fetching detail for property_id: ${item.property_id}`); // Debug 4
           const propertyData = await fetchPropertyById(
             String(item.property_id)
           );
+          console.log(`fetchDetailedProperties: Received data for property_id ${item.property_id}:`, propertyData); // Debug 5
 
           return {
             ...propertyData,
@@ -103,18 +110,20 @@ export default function WishlistPage() {
         });
 
         const resolvedProperties = await Promise.all(detailedPropsPromises);
+        console.log("fetchDetailedProperties: All detailed properties resolved:", resolvedProperties); // Debug 6
         setDetailedWishlistProperties(resolvedProperties);
       } catch (err: any) {
         console.error(
-          "Failed to fetch detailed property data for wishlist:",
+          "fetchDetailedProperties: Failed to fetch detailed property data for wishlist:",
           err
-        );
+        ); // Debug 7
         setErrorDetails(
-          "Could not load details for all properties. Please try again."
+          err.message || "Could not load details for all properties. Please try again."
         );
         setDetailedWishlistProperties([]); // Clear on error
       } finally {
         setIsLoadingDetails(false);
+        console.log("fetchDetailedProperties: Finished fetching details."); // Debug 8
       }
     },
     []
@@ -122,9 +131,11 @@ export default function WishlistPage() {
 
   // Trigger detailed property fetch whenever the core wishlist changes
   useEffect(() => {
+    console.log("WishlistPage useEffect: Wishlist changed. Current wishlist:", wishlist); // Debug 9
     if (wishlist && wishlist.length > 0) {
       fetchDetailedProperties(wishlist);
     } else {
+      console.log("WishlistPage useEffect: Wishlist is empty or null. Clearing details."); // Debug 10
       setDetailedWishlistProperties([]); // Clear details if wishlist is empty
       setIsLoadingDetails(false);
       setErrorDetails(null);
@@ -134,17 +145,18 @@ export default function WishlistPage() {
 
   // Handle removing a property from wishlist (from PropertyCard or explicit button)
   const handleRemoveFromWishlist = async (propertyId: number) => {
+    console.log(`handleRemoveFromWishlist: Attempting to remove property_id: ${propertyId}`); // Debug 11
     try {
       await removeProperty(propertyId);
+      console.log(`handleRemoveFromWishlist: Property ${propertyId} removed from wishlist successfully.`); // Debug 12
       // The `useWishlist` hook handles optimistic updates or refetches,
       // which will then trigger the `useEffect` above to update `detailedWishlistProperties`.
-      console.log(`Property ${propertyId} removed from wishlist.`);
       // Deselect the property if it was part of the comparison selection
       if (isPropertySelected(propertyId)) {
         toggleProperty(propertyId);
       }
     } catch (e: any) {
-      console.error("Failed to remove property:", e);
+      console.error("handleRemoveFromWishlist: Failed to remove property:", e); // Debug 13
       alert(e.message || "Failed to remove property from wishlist.");
       refetchWishlist(); // If optimistic update failed, force a refetch
     }
@@ -152,6 +164,7 @@ export default function WishlistPage() {
 
   // Handle the click on the "Compare" button
   const handleCompareClick = () => {
+    console.log("handleCompareClick: Compare button clicked. Selected IDs:", selectedPropertyIds); // Debug 14
     if (selectedPropertyIds.length < 2) {
       alert("Please select at least two properties to compare.");
       return;
@@ -162,8 +175,11 @@ export default function WishlistPage() {
     router.push(`/user/compare?${queryParams.toString()}`);
   };
 
+  console.log("WishlistPage: Render path - isLoading:", isLoading, "error:", error, "isLoadingDetails:", isLoadingDetails, "errorDetails:", errorDetails); // Debug 15
+
   // --- Loading States ---
   if (isLoading) {
+    console.log("WishlistPage: Displaying initial loading state from useWishlist."); // Debug 16
     return (
       <div className="container mx-auto px-4 py-8 text-center text-gray-600">
         <p className="text-lg font-semibold">Loading your wishlist...</p>
@@ -173,6 +189,7 @@ export default function WishlistPage() {
 
   // --- Error States ---
   if (error) {
+    console.error("WishlistPage: Displaying error state from useWishlist. Error object:", error); // Debug 17
     return (
       <div className="container mx-auto px-4 py-8 text-center text-red-600">
         <XCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
@@ -203,10 +220,11 @@ export default function WishlistPage() {
                 if (isSelectionMode) { // If turning selection mode OFF, clear selection
                   clearSelection();
                 }
+                console.log("WishlistPage: Toggle selection mode button clicked. New mode:", !isSelectionMode); // Debug 18
               }}
               className={`flex items-center px-4 py-2 rounded-md shadow-sm transition-colors text-sm
-                ${isSelectionMode 
-                  ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' 
+                ${isSelectionMode
+                  ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
               <ListChecks className="h-5 w-5 mr-2" />

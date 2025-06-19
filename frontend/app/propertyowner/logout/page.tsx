@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
+import Sidebar from "@/component/dashoboadpropertyowner/sidebar";
 
 export default function LogoutPage() {
   const router = useRouter();

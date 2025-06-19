@@ -90,6 +90,7 @@ services:
       BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
 
   frontend:
+
       restart: "no"
       ports:
         - "3000:3000"
@@ -97,6 +98,8 @@ services:
         context: ./frontend
         dockerfile: Dockerfile.dev
       command: ["npm", "run", "dev"]
+      init: true
+      stop_grace_period: 60s
       environment:
         - NODE_ENV=development
         - NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -129,6 +132,36 @@ services:
                 - ./frontend/.next
       depends_on:
         - backend
+
+
+  # frontend:
+  #   restart: "no"
+  #   ports:
+  #     - "3000:3000"
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile.prod
+  #   environment:
+  #     - NODE_ENV=development
+  #     - NEXT_PUBLIC_API_URL=http://localhost:8000
+  #   networks:
+  #     - traefik-public
+  #     - default
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.docker.network=traefik-public
+  #     - traefik.constraint-label=traefik-public
+  #     - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.rule=Host(`dashboard.${DOMAIN?Variable not set}`)
+  #     - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.entrypoints=http
+  #     - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.middlewares=https-redirect
+  #     - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.rule=Host(`dashboard.${DOMAIN?Variable not set}`)
+  #     - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.entrypoints=https
+  #     - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.tls=true
+  #     - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.tls.certresolver=le
+  #     - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.tls.certresolver=le
+  #     - traefik.http.services.${STACK_NAME?Variable not set}-frontend.loadbalancer.server.port=3000
+  #   depends_on:
+  #     - backend
 
   mailcatcher:
     image: schickling/mailcatcher

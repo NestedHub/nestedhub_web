@@ -4,7 +4,7 @@ import type React from "react";
 
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
+import Sidebar from "@/component/dashoboadpropertyowner/sidebar";
 
 // Mock property data
 const mockPropertyDetail = {

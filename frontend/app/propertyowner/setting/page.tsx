@@ -4,7 +4,7 @@ import type React from "react";
 
 import { useState } from "react";
 import Image from "next/image";
-import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
+import Sidebar from "@/component/dashoboadpropertyowner/sidebar";
 
 export default function SettingsPage() {
   const [userInfo, setUserInfo] = useState({

@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import Sidebar from "@/components/dashoboadpropertyowner/sidebar";
+import Sidebar from "@/component/dashoboadpropertyowner/sidebar";
 
 // Mock property data
 const mockPropertyDetail = {

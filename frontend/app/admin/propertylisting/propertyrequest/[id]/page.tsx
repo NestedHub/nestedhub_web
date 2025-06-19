@@ -279,5 +279,4 @@ export default function PropertyRequestDetailPage() {
       </div>
     </AdminSidebar>
   );
-  );
 }

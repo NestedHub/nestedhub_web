@@ -8,7 +8,16 @@ RUN npm ci
 
 COPY . .
 
+# --- ADD THESE DEBUGGING LINES ---
+RUN echo "--- Listing /app before build ---"
+RUN ls -la /app
+RUN echo "--- Running npm run build ---"
 RUN npm run build
+RUN echo "--- Listing /app after build (should see .next) ---"
+RUN ls -la /app
+RUN echo "--- Listing /app/.next after build ---"
+RUN ls -la /app/.next
+# --- END DEBUGGING LINES ---
 
 # Runner stage (production image)
 FROM node:18.18.0-alpine AS runner
@@ -21,6 +30,13 @@ COPY --from=base /app/public ./public
 COPY --from=base /app/.next ./.next
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/package.json ./package.json
+
+# --- ADD THESE DEBUGGING LINES ---
+RUN echo "--- Listing /app in runner stage after copy ---"
+RUN ls -la /app
+RUN echo "--- Listing /app/.next in runner stage after copy ---"
+RUN ls -la /app/.next
+# --- END DEBUGGING LINES ---
 
 EXPOSE 3000
 

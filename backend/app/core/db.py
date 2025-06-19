@@ -31,14 +31,19 @@ async_engine = create_async_engine(
 )
 
 # 🔒 Synchronous session factory
+
+
 def get_sync_session():
     with Session(sync_engine) as session:
         yield session
 
 # ⚡ Asynchronous session factory
+
+
 async def get_async_session():
     async with AsyncSession(async_engine) as session:
         yield session
+
 
 def get_or_create(session: Session, model, **kwargs):
     """Get an existing record or create a new one."""
@@ -50,6 +55,7 @@ def get_or_create(session: Session, model, **kwargs):
         session.add(instance)
         session.flush()  # Flush to assign PKs
         return instance  # Commit later after batch
+
 
 def init_db(session: Session) -> None:
     # Load Property Categories from CSV
@@ -79,7 +85,8 @@ def init_db(session: Session) -> None:
                 feature_names.add(feature_name)
                 logger.info(f"Prepared feature: {feature_name}")
             else:
-                logger.info(f"Feature '{feature_name}' already exists, skipping.")
+                logger.info(
+                    f"Feature '{feature_name}' already exists, skipping.")
 
         if features:
             session.add_all(features)
@@ -108,13 +115,11 @@ def init_db(session: Session) -> None:
                 category_names.add(category_name)
                 logger.info(f"Prepared category: {category_name}")
             else:
-                logger.info(f"Category '{category_name}' already exists, skipping.")
+                logger.info(
+                    f"Category '{category_name}' already exists, skipping.")
 
         if categories:
             session.add_all(categories)
-
-
-    
 
     # Load Cambodia Admin Data from CSV
     with open('app/data/cambodia_admin_nested.csv', mode='r', newline='', encoding='utf-8') as file:
@@ -200,26 +205,46 @@ def init_db(session: Session) -> None:
 
     # Initialize Users
     users = [
-        User(name="Sokha Meas", email="sokha.meas@example.com", phone="+85512345678", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Chantha Kim", email="chantha.kim@example.com", phone="+85598765432", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/chantha_kim.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Rathana Sovann", email="rathana.sovann@example.com", phone="+85591234567", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Srey Pov", email="srey.pov@example.com", phone="+85587654321", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/srey_pov.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Vannak Chea", email="vannak.chea@example.com", phone="+85576543210", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Sophea Lim", email="sophea.lim@example.com", phone="+85512398765", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Dara Seng", email="dara.seng@example.com", phone="+85523456789", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/dara_seng.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Maly Noun", email="maly.noun@example.com", phone="+85534567890", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Rithy Phon", email="rithy.phon@example.com", phone="+85545678901", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Sokunthea Chhay", email="sokunthea.chhay@example.com", phone="+85556789012", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/sokunthea_chhay.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Vuthy Sok", email="vuthy.sok@example.com", phone="+85567890123", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Sreylin Mao", email="sreylin.mao@example.com", phone="+85578901234", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Chhay Leang", email="chhay.leang@example.com", phone="+85589012345", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/chhay_leang.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Sokhom Vong", email="sokhom.vong@example.com", phone="+85590123456", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Thida Sam", email="thida.sam@example.com", phone="+85512344321", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Borey Keo", email="borey.keo@example.com", phone="+85523455432", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/borey_keo.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Sreyneang Ouk", email="sreyneang.ouk@example.com", phone="+85534566543", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Vannara Tep", email="vannara.tep@example.com", phone="+85545677654", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
-        User(name="Pich Sopheak", email="pich.sopheak@example.com", phone="+85556788765", hashed_password=get_password_hash("password123"), role=UserRole.property_owner, is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/pich_sopheak.jpg", created_at=datetime.now(timezone.utc)),
-        User(name="Chenda Nguon", email="chenda.nguon@example.com", phone="+85567899876", hashed_password=get_password_hash("password123"), role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Sokha Meas", email="sokha.meas@example.com", phone="+85512345678", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Chantha Kim", email="chantha.kim@example.com", phone="+85598765432", hashed_password=get_password_hash("password123"), role=UserRole.property_owner,
+             is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/chantha_kim.jpg", created_at=datetime.now(timezone.utc)),
+        User(name="Rathana Sovann", email="rathana.sovann@example.com", phone="+85591234567", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Srey Pov", email="srey.pov@example.com", phone="+85587654321", hashed_password=get_password_hash("password123"), role=UserRole.property_owner,
+             is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/srey_pov.jpg", created_at=datetime.now(timezone.utc)),
+        User(name="Vannak Chea", email="vannak.chea@example.com", phone="+85576543210", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Sophea Lim", email="sophea.lim@example.com", phone="+85512398765", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Dara Seng", email="dara.seng@example.com", phone="+85523456789", hashed_password=get_password_hash("password123"), role=UserRole.property_owner,
+             is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/dara_seng.jpg", created_at=datetime.now(timezone.utc)),
+        User(name="Maly Noun", email="maly.noun@example.com", phone="+85534567890", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Rithy Phon", email="rithy.phon@example.com", phone="+85545678901", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Sokunthea Chhay", email="sokunthea.chhay@example.com", phone="+85556789012", hashed_password=get_password_hash("password123"), role=UserRole.property_owner,
+             is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/sokunthea_chhay.jpg", created_at=datetime.now(timezone.utc)),
+        User(name="Vuthy Sok", email="vuthy.sok@example.com", phone="+85567890123", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Sreylin Mao", email="sreylin.mao@example.com", phone="+85578901234", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Chhay Leang", email="chhay.leang@example.com", phone="+85589012345", hashed_password=get_password_hash("password123"), role=UserRole.property_owner,
+             is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/chhay_leang.jpg", created_at=datetime.now(timezone.utc)),
+        User(name="Sokhom Vong", email="sokhom.vong@example.com", phone="+85590123456", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Thida Sam", email="thida.sam@example.com", phone="+85512344321", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Borey Keo", email="borey.keo@example.com", phone="+85523455432", hashed_password=get_password_hash("password123"), role=UserRole.property_owner,
+             is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/borey_keo.jpg", created_at=datetime.now(timezone.utc)),
+        User(name="Sreyneang Ouk", email="sreyneang.ouk@example.com", phone="+85534566543", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Vannara Tep", email="vannara.tep@example.com", phone="+85545677654", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
+        User(name="Pich Sopheak", email="pich.sopheak@example.com", phone="+85556788765", hashed_password=get_password_hash("password123"), role=UserRole.property_owner,
+             is_email_verified=True, is_approved=True, is_active=True, id_card_url="https://example.com/id_cards/pich_sopheak.jpg", created_at=datetime.now(timezone.utc)),
+        User(name="Chenda Nguon", email="chenda.nguon@example.com", phone="+85567899876", hashed_password=get_password_hash("password123"),
+             role=UserRole.customer, is_approved=True, is_email_verified=True, is_active=True, created_at=datetime.now(timezone.utc)),
     ]
     session.add_all(users)
     session.flush()  # Assign user IDs
@@ -296,7 +321,8 @@ def init_db(session: Session) -> None:
         "Spacious {category} in {district}, ideal for creative types with open layouts.",
     ]
     for i in range(50):
-        owner = random.choice([u for u in users if u.role == UserRole.property_owner])
+        owner = random.choice(
+            [u for u in users if u.role == UserRole.property_owner])
         category = session.exec(select(PropertyCategory).where(
             PropertyCategory.category_name == random.choice(["House", "Apartment", "Room"]))).first()
         district = random.choice(districts)
@@ -305,13 +331,16 @@ def init_db(session: Session) -> None:
             user_id=owner.user_id,
             category_id=category.category_id,
             title=f"{category.category_name} in {district['district_name']}",
-            description=description_template.format(category=category.category_name.lower(), district=district['district_name']),
+            description=description_template.format(
+                category=category.category_name.lower(), district=district['district_name']),
             bedrooms=random.randint(1, 5),
             bathrooms=random.randint(1, 4),
             land_area=Decimal(str(round(random.uniform(40, 300), 2))),
             floor_area=Decimal(str(round(random.uniform(30, 250), 2))),
-            status=random.choice([PropertyStatusEnum.available, PropertyStatusEnum.rented]),
-            listed_at=datetime.now(timezone.utc) - timedelta(days=random.randint(1, 60)),
+            status=random.choice(
+                [PropertyStatusEnum.available, PropertyStatusEnum.rented]),
+            listed_at=datetime.now(timezone.utc) -
+            timedelta(days=random.randint(1, 60)),
             updated_at=datetime.now(timezone.utc),
         )
         properties.append(property)
@@ -323,7 +352,8 @@ def init_db(session: Session) -> None:
     for property in properties:
         district = random.choice(districts)
         district_id = district["district_id"]
-        commune = random.choice(communes_by_district.get(district_id, communes_by_district[58]))
+        commune = random.choice(communes_by_district.get(
+            district_id, communes_by_district[58]))
         location = PropertyLocation(
             property_id=property.property_id,
             city_id=phnom_penh.city_id,
@@ -353,7 +383,8 @@ def init_db(session: Session) -> None:
             seed = f"{property.property_id}_{i}"
             media = PropertyMedia(
                 property_id=property.property_id,
-                media_url=f"https://picsum.photos/seed/{seed}/600/350",  # You can adjust the size if needed
+                # You can adjust the size if needed
+                media_url=f"https://picsum.photos/seed/{seed}/600/350",
                 media_type=MediaType.image,
             )
             session.add(media)
@@ -368,28 +399,68 @@ def init_db(session: Session) -> None:
     ]
     for property in properties:
         for _ in range(random.randint(2, 5)):
-            reviewer = random.choice([u for u in users if u.role == UserRole.customer])
+            reviewer = random.choice(
+                [u for u in users if u.role == UserRole.customer])
             comment_template = random.choice(review_comments)
             review = Review(
                 user_id=reviewer.user_id,
                 property_id=property.property_id,
                 rating=random.randint(3, 5),
-                comment=comment_template.format(category=property.property_category.category_name.lower(), district=districts[random.randint(0, len(districts)-1)]['district_name']),
+                comment=comment_template.format(category=property.property_category.category_name.lower(
+                ), district=districts[random.randint(0, len(districts)-1)]['district_name']),
                 status=ReviewStatusEnum.approved,
-                created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(1, 30)),
+                created_at=datetime.now(timezone.utc) -
+                timedelta(days=random.randint(1, 30)),
             )
             session.add(review)
 
     # Initialize Viewing Requests
+    message_options = [
+        "Hi, I'm very interested in this property. When would be a good time to view it?",
+        "Looking forward to seeing this place! Is there parking nearby?",
+        "Please let me know if the requested time works. I'm flexible.",
+        "Could you tell me more about the neighborhood?",
+        "I'm available any time next week. Let me know what suits you.",
+        "Just confirming my interest. Thanks!",
+        "I'm a student looking for a quiet place. Is it suitable?",
+        "No specific message, just wanted to request a viewing.",
+        "Is it possible to arrange a virtual tour first?",
+        "I'll be bringing a friend along for the viewing, if that's okay.",
+        "I'm keen to move in by next month, so hoping for an early viewing.",
+        "Hello, I'm reaching out about the property. Is the requested time feasible?",
+        "Would it be possible to view it on a weekend?",
+        "Just a quick note to express my interest in the property.",
+        "I'm available from 9 AM to 5 PM on weekdays. Let me know what works for you."
+    ]
+
     for property in properties:
+        # Ensure there are customers to create viewing requests
+        customer_users = [u for u in users if u.role == UserRole.customer]
+        if not customer_users:
+            print(
+                f"Skipping viewing requests for property {property.property_id}: No customer users available.")
+            continue
+
         for _ in range(random.randint(1, 4)):
-            requester = random.choice([u for u in users if u.role == UserRole.customer])
+            requester = random.choice(customer_users)
+
+            # Randomly select a message, or sometimes make it None
+            # Increase chances of None
+            message = random.choice(message_options + [None, None, None])
+
             viewing = ViewingRequest(
                 user_id=requester.user_id,
                 property_id=property.property_id,
-                requested_time=datetime.now(timezone.utc) + timedelta(days=random.randint(1, 10)),
-                status=random.choice([ViewingRequestStatusEnum.pending, ViewingRequestStatusEnum.accepted, ViewingRequestStatusEnum.denied]),
-                created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 15)),
+                requested_time=datetime.now(timezone.utc) + timedelta(days=random.randint(
+                    # More realistic time in next 30 days
+                    1, 30), hours=random.randint(9, 17)),
+                status=random.choice([ViewingRequestStatusEnum.pending, ViewingRequestStatusEnum.pending,
+                                     # More pending/accepted
+                                      ViewingRequestStatusEnum.accepted, ViewingRequestStatusEnum.denied]),
+                created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(
+                    # Created up to 60 days ago
+                    0, 60), hours=random.randint(0, 23), minutes=random.randint(0, 59)),
+                message=message,  # <--- ADDED: Assign the randomly selected message
             )
             session.add(viewing)
 
@@ -398,7 +469,8 @@ def init_db(session: Session) -> None:
         selected_property_ids = set()
         for _ in range(random.randint(2, 5)):
             # Choose a property not already in the wishlist for this user
-            available_properties = [p for p in properties if p.property_id not in selected_property_ids]
+            available_properties = [
+                p for p in properties if p.property_id not in selected_property_ids]
             if not available_properties:
                 break  # No more unique properties available
             property = random.choice(available_properties)
@@ -407,14 +479,16 @@ def init_db(session: Session) -> None:
             wishlist = WishList(
                 user_id=user.user_id,
                 property_id=property.property_id,
-                added_at=datetime.now(timezone.utc) - timedelta(days=random.randint(1, 30)),
+                added_at=datetime.now(timezone.utc) -
+                timedelta(days=random.randint(1, 30)),
             )
             session.add(wishlist)
     # END SAMPLE DATA
 
     try:
         session.commit()
-        logger.info("Data and admin user successfully inserted into the database!")
+        logger.info(
+            "Data and admin user successfully inserted into the database!")
     except IntegrityError as e:
         session.rollback()
         logger.error("Error inserting data:", e)'''

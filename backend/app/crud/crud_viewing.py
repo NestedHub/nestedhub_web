@@ -27,7 +27,8 @@ def create_viewing_request(
         user_id=user_id,
         property_id=viewing_request.property_id,
         requested_time=viewing_request.requested_time,
-        status=ViewingRequestStatusEnum.pending
+        status=ViewingRequestStatusEnum.pending,
+        message=viewing_request.message  # <--- ADDED: Include the message
     )
 
     db.add(db_viewing_request)
@@ -76,7 +77,12 @@ def update_viewing_request(
         raise HTTPException(
             status_code=403, detail="Not authorized to update this request")
 
-    update_data = viewing_request_update.dict(exclude_unset=True)
+    # This line already handles the message field because `viewing_request_update`
+    # now includes `message: Optional[str]`. If `message` is present in the
+    # update_data, it will be set. If it's not present (e.g., exclude_unset=True),
+    # it won't attempt to change the existing message.
+    # Changed .dict() to .model_dump() for Pydantic v2
+    update_data = viewing_request_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_viewing_request, key, value)
 
