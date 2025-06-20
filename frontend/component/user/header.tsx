@@ -3,7 +3,15 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronDown, Heart, Menu, User, Loader2, X, CalendarCheck } from "lucide-react"; // Import CalendarCheck icon
+import {
+  ChevronDown,
+  Heart,
+  Menu,
+  User,
+  Loader2,
+  X,
+  CalendarCheck,
+} from "lucide-react"; // Import CalendarCheck icon
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useWishlist } from "@/lib/hooks/usewishlist";
 import { useUser } from "@/lib/hooks/useUser";
@@ -23,7 +31,8 @@ export default function Header({ userType = "user" }: HeaderProps) {
   const router = useRouter();
 
   // Use the useUserViewingRequests hook to get viewing requests
-  const { data: userViewingRequests, loading: loadingViewingRequests } = useUserViewingRequests();
+  const { data: userViewingRequests, loading: loadingViewingRequests } =
+    useUserViewingRequests();
 
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -93,7 +102,9 @@ export default function Header({ userType = "user" }: HeaderProps) {
   // Calculate the number of pending viewing requests
   const pendingRequestsCount = useMemo(() => {
     if (userViewingRequests && !loadingViewingRequests) {
-      return userViewingRequests.filter(request => request.status === 'pending').length;
+      return userViewingRequests.filter(
+        (request) => request.status === "pending"
+      ).length;
     }
     return 0;
   }, [userViewingRequests, loadingViewingRequests]);

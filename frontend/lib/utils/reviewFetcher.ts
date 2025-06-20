@@ -1,4 +1,5 @@
 // api/reviewFetcher.ts
+import { fetchAuthenticated } from "./user-api"; // Adjust the import path as needed
 
 /**
  * @file This file contains the API client functions for interacting with the review endpoints.
@@ -7,8 +8,8 @@
  */
 
 // Base URL for the API. In a real application, this would typically come from
-// environment variables (e.g., process.env.REACT_APP_API_BASE_URL).
-const BASE_URL = "http://localhost:8000/api/";
+// environment variables (e.g., process.env.NEXT_PUBLIC_API_BASE_URL).
+const BASE_URL = "http://localhost:8000/api";
 
 /**
  * @enum ReviewStatusEnum
@@ -70,15 +71,12 @@ export interface ReviewStatusUpdate {
   status: ReviewStatusEnum; // Using the new ReviewStatusEnum
 }
 
-/**
- * @function getAuthHeader
- * @description Helper function to retrieve the authorization token from localStorage.
- * This token is crucial for authenticating API requests and is typically set after user login.
- * @returns {HeadersInit} An object containing the 'Authorization' header, or an empty object
- * if no authentication token is found in localStorage.
- */
+// NOTE: The `getAuthHeader` function is no longer directly used by the specific
+// fetcher functions below, as `fetchAuthenticated` handles token retrieval internally.
+// You can remove it if it's not used elsewhere.
 const getAuthHeader = (): HeadersInit => {
   const token = localStorage.getItem('authToken');
+  console.log("getAuthHeader: Token retrieved from localStorage:", token);
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
@@ -92,21 +90,8 @@ const getAuthHeader = (): HeadersInit => {
  */
 export async function createReview(reviewData: ReviewCreate): Promise<ReviewResponse> {
   console.log("API Fetcher: Attempting to create review with data:", reviewData);
-  const response = await fetch(`${BASE_URL}/reviews/`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(), // Include authentication token from localStorage
-    },
-    body: JSON.stringify(reviewData), // Send review data as JSON string
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json(); // Parse error response for details
-    throw new Error(errorData.detail || `Failed to create review: ${response.statusText}`);
-  }
-
-  return response.json(); // Return the parsed JSON response
+  // Using fetchAuthenticated for this POST request
+  return fetchAuthenticated<ReviewResponse>('/reviews/', 'POST', reviewData);
 }
 
 /**
@@ -119,48 +104,47 @@ export async function createReview(reviewData: ReviewCreate): Promise<ReviewResp
  */
 export async function fetchMyReviews(): Promise<ReviewResponse[]> {
   console.log("API Fetcher: Attempting to fetch current user's reviews...");
-  const response = await fetch(`${BASE_URL}/reviews/user`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(), // Include authentication token
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || `Failed to fetch user reviews: ${response.statusText}`);
-  }
-
-  return response.json();
+  // Using fetchAuthenticated for this GET request
+  return fetchAuthenticated<ReviewResponse[]>('/reviews/user', 'GET');
 }
 
 /**
  * @function fetchReviewsForProperty
  * @description API call to retrieve reviews for a specific property.
  * By default, this endpoint usually returns only "approved" reviews to public users.
- * Admins and property owners, if authorized, might see all reviews (pending, approved, rejected).
+ * This function does NOT use fetchAuthenticated because it's a public endpoint.
  * @param {number} propertyId - The ID of the property for which to fetch reviews.
  * @returns {Promise<ReviewResponse[]>} A promise that resolves with a list of `ReviewResponse` objects
  * for the specified property.
  * @throws {Error} Throws an error if the network response is not OK or if the API returns an error message.
  */
 export async function fetchReviewsForProperty(propertyId: number): Promise<ReviewResponse[]> {
-  console.log(`API Fetcher: Attempting to fetch reviews for property ID: ${propertyId}`);
-  const response = await fetch(`${BASE_URL}/reviews/public/property/${propertyId}/reviews`, {
+  console.log(`[API Fetcher] fetchReviewsForProperty: Attempting to fetch reviews for property ID: ${propertyId}`);
+
+  // This is a public endpoint, so it does NOT use fetchAuthenticated.
+  // Ensure the URL is correct for your backend.
+  const url = `${BASE_URL}/reviews/public/property/${propertyId}/reviews`;
+
+  console.log(`[API Fetcher] fetchReviewsForProperty: Request URL: ${url}`);
+
+  const response = await fetch(url, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      ...getAuthHeader(), // Authentication might be needed for specific roles (e.g., admin/owner) to see all reviews
     },
   });
 
+  console.log(`[API Fetcher] fetchReviewsForProperty: Response status: ${response.status} ${response.statusText}`);
+
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({})); // Catch JSON parse errors
+    console.error(`[API Fetcher] fetchReviewsForProperty: Error response data:`, errorData);
     throw new Error(errorData.detail || `Failed to fetch reviews for property: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log(`[API Fetcher] fetchReviewsForProperty: Successfully received data:`, data);
+  return data;
 }
 
 /**
@@ -174,21 +158,8 @@ export async function fetchReviewsForProperty(propertyId: number): Promise<Revie
  */
 export async function updateReviewStatus(reviewId: number, statusData: ReviewStatusUpdate): Promise<ReviewResponse> {
   console.log(`API Fetcher: Attempting to update status for review ID: ${reviewId} to ${statusData.status}`);
-  const response = await fetch(`${BASE_URL}/reviews/${reviewId}/status`, {
-    method: 'PATCH', // Use PATCH for partial updates
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(), // Include authentication token
-    },
-    body: JSON.stringify(statusData), // Send new status as JSON
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || `Failed to update review status: ${response.statusText}`);
-  }
-
-  return response.json();
+  // Using fetchAuthenticated for this PATCH request
+  return fetchAuthenticated<ReviewResponse>(`/reviews/${reviewId}/status`, 'PATCH', statusData);
 }
 
 /**
@@ -201,19 +172,7 @@ export async function updateReviewStatus(reviewId: number, statusData: ReviewSta
  */
 export async function deleteReview(reviewId: number): Promise<void> {
   console.log(`API Fetcher: Attempting to delete review ID: ${reviewId}`);
-  const response = await fetch(`${BASE_URL}/reviews/${reviewId}`, {
-    method: 'DELETE',
-    headers: {
-      ...getAuthHeader(), // Include authentication token
-    },
-  });
-
-  // A 204 No Content status is a successful response for DELETE operations.
-  // We only throw an error if the response is not OK AND not 204.
-  if (!response.ok && response.status !== 204) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || `Failed to delete review: ${response.statusText}`);
-  }
-  // If response.ok or status is 204, it implies success, so the Promise resolves to void.
+  // Using fetchAuthenticated for this DELETE request.
+  // fetchAuthenticated is designed to return null for 204 No Content, which matches Promise<void>.
+  return fetchAuthenticated<void>(`/reviews/${reviewId}`, 'DELETE');
 }
-

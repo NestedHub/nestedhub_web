@@ -2,14 +2,26 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
+import Link from "next/link"; // Import Link component
 import {
   useUserUpcomingViewingRequests,
   useUserViewingRequests,
 } from "@/lib/hooks/useViewingRequests";
 import { ViewingRequestResponse } from "@/lib/api/viewingrequest";
-import { CalendarCheck, Loader2, Info, XCircle, CheckCircle } from "lucide-react";
+import {
+  CalendarCheck,
+  Loader2,
+  Info,
+  XCircle,
+  CheckCircle,
+  Bed,
+  Bath,
+  Ruler,
+  DollarSign,
+} from "lucide-react";
 import { format } from "date-fns";
-import { useProperty } from "@/lib/hooks/useProperty"; // Import the useProperty hook
+import { useProperty } from "@/lib/hooks/useProperty";
 
 type Tab = "upcoming" | "pending" | "all";
 
@@ -19,8 +31,9 @@ interface ViewingRequestCardProps {
 }
 
 const ViewingRequestCard: React.FC<ViewingRequestCardProps> = ({ request }) => {
-  // Use the useProperty hook to fetch property details for this request
-  const { property, isLoading, error } = useProperty(String(request.property_id)); // property_id is number, useProperty expects string
+  const { property, isLoading, error } = useProperty(
+    String(request.property_id)
+  );
 
   const statusColor =
     request.status === "accepted"
@@ -38,14 +51,22 @@ const ViewingRequestCard: React.FC<ViewingRequestCardProps> = ({ request }) => {
       <XCircle className="h-5 w-5 mr-1" />
     );
 
-  // Parse requested_time for display
   const requestedDateTime = new Date(request.requested_time);
-  const preferredDate = format(requestedDateTime, "PPP"); // e.g., Jun 19th, 2025
-  const preferredTimeSlot = format(requestedDateTime, "p"); // e.g., 7:30 PM
+  const preferredDate = format(requestedDateTime, "PPP");
+  const preferredTimeSlot = format(requestedDateTime, "p");
+
+  // Determine the main image URL
+  const mainImageUrl = useMemo(() => {
+    if (property && property.media && property.media.length > 0) {
+      const mainMedia = property.media.find((media) => media.is_main);
+      return mainMedia ? mainMedia.url : property.media[0].url;
+    }
+    return "/placeholder-property.jpg"; // Default placeholder if no image available
+  }, [property]);
 
   if (isLoading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex items-center justify-center h-40">
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex items-center justify-center min-h-[220px] w-full">
         <Loader2 className="h-6 w-6 text-green-700 animate-spin" />
         <span className="ml-2 text-gray-600">Loading property...</span>
       </div>
@@ -54,44 +75,107 @@ const ViewingRequestCard: React.FC<ViewingRequestCardProps> = ({ request }) => {
 
   if (error || !property) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md border border-red-200 text-red-700 h-40 flex items-center justify-center">
+      <div className="bg-white p-6 rounded-lg shadow-md border border-red-200 text-red-700 min-h-[220px] w-full flex items-center justify-center">
         <XCircle className="h-6 w-6 mr-2" />
         <span>Failed to load property details.</span>
       </div>
     );
   }
 
+  const propertyDetailPageUrl = `/user/rent/${property.property_id}`;
+
   return (
     <div
       key={request.request_id}
-      className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border border-gray-200"
+      className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border border-gray-200
+                 w-full flex items-start" // Changed items-center to items-start for top alignment
     >
-      <h3 className="text-xl font-semibold text-gray-800 mb-2">
-        Request for:{" "}
-        <span className="text-green-700">{property.title}</span> {/* Use property.title */}
-      </h3>
-      <p className="text-gray-600 mb-1">
-        <span className="font-medium">Property ID:</span> {request.property_id} {/* Use request.property_id */}
-      </p>
-      <p className="text-gray-600 mb-1">
-        <span className="font-medium">Requested Date:</span>{" "}
-        {preferredDate}
-      </p>
-      <p className="text-gray-600 mb-1">
-        <span className="font-medium">Time Slot:</span> {preferredTimeSlot}
-      </p>
-      <p className={`flex items-center text-md font-semibold mt-3 ${statusColor}`}>
-        {statusIcon}
-        Status: {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-      </p>
-      <p className="text-gray-500 text-sm mt-2">
-        Created On: {format(new Date(request.created_at), "PPpp")}
-      </p>
-      {request.message && (
-        <p className="text-gray-700 italic mt-3 border-t pt-3 text-sm">
-          "{request.message}"
-        </p>
-      )}
+      {/* Image Section (Left) */}
+      <div className="flex-shrink-0 w-64 h-48 md:w-72 md:h-56 lg:w-80 lg:h-64 rounded-md overflow-hidden relative">
+        {" "}
+        {/* Increased image size */}
+        <Image
+          src={mainImageUrl}
+          alt={property.title || "Property image"}
+          layout="fill"
+          objectFit="cover"
+          className="rounded-md"
+        />
+      </div>
+
+      {/* Content Section (Right) */}
+      <div className="flex-grow pl-4">
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">
+          Request for:{" "}
+          <Link
+            href={propertyDetailPageUrl}
+            className="text-green-700 hover:underline"
+          >
+            {property.title}
+          </Link>
+        </h3>
+        {/* Essential Property Details */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-gray-600 text-sm mb-3">
+          {property.category_name && (
+            <p className="flex items-center">
+              <span className="font-medium">Category:</span>{" "}
+              {property.category_name}
+            </p>
+          )}
+          {property.bedrooms !== undefined && property.bedrooms !== null && (
+            <p className="flex items-center">
+              <Bed className="h-4 w-4 mr-1 text-gray-500" />
+              <span className="font-medium">{property.bedrooms} Beds</span>
+            </p>
+          )}
+          {property.bathrooms !== undefined && property.bathrooms !== null && (
+            <p className="flex items-center">
+              <Bath className="h-4 w-4 mr-1 text-gray-500" />
+              <span className="font-medium">{property.bathrooms} Baths</span>
+            </p>
+          )}
+          {property.floor_area !== undefined &&
+            property.floor_area !== null && (
+              <p className="flex items-center">
+                <Ruler className="h-4 w-4 mr-1 text-gray-500" />
+                <span className="font-medium">{property.floor_area} m²</span>
+              </p>
+            )}
+          {property.pricing?.rent_price && (
+            <p className="flex items-center">
+              <DollarSign className="h-4 w-4 mr-1 text-gray-500" />
+              <span className="font-medium">
+                ${property.pricing.rent_price.toLocaleString()} / month
+              </span>
+            </p>
+          )}
+        </div>
+
+        {/* Viewing Request Specific Details */}
+        <div className="border-t border-gray-100 pt-3 mt-3">
+          <p className="text-gray-600 mb-1">
+            <span className="font-medium">Requested Date:</span> {preferredDate}
+          </p>
+          <p className="text-gray-600 mb-1">
+            <span className="font-medium">Time Slot:</span> {preferredTimeSlot}
+          </p>
+          <p
+            className={`flex items-center text-md font-semibold mt-3 ${statusColor}`}
+          >
+            {statusIcon}
+            Status:{" "}
+            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+          </p>
+          <p className="text-gray-500 text-sm mt-2">
+            Created On: {format(new Date(request.created_at), "PPpp")}
+          </p>
+          {request.message && (
+            <p className="text-gray-700 italic mt-3 border-t pt-3 text-sm">
+              "{request.message}"
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -100,29 +184,35 @@ const ViewingRequestCard: React.FC<ViewingRequestCardProps> = ({ request }) => {
 export default function ViewingRequestsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("upcoming");
 
-  // This hook already specifically fetches upcoming (accepted and in future) requests
   const {
-    data: upcomingAcceptedRequests, // Renamed for clarity
+    data: rawUpcomingRequests,
     loading: loadingUpcoming,
     error: errorUpcoming,
   } = useUserUpcomingViewingRequests();
 
-  // This hook fetches all requests
+  const upcomingAcceptedRequests = useMemo(() => {
+    const now = new Date();
+    return rawUpcomingRequests.filter(
+      (request) =>
+        request.status === "accepted" && new Date(request.requested_time) > now
+    );
+  }, [rawUpcomingRequests]);
+
   const {
     data: allRequests,
     loading: loadingAll,
     error: errorAll,
   } = useUserViewingRequests();
 
-  // Memoize pending requests from the 'allRequests' list
   const pendingRequests = useMemo(() => {
     return allRequests.filter((request) => request.status === "pending");
   }, [allRequests]);
 
-  // Memoize all requests, sorted for 'All History'
   const sortedAllRequests = useMemo(() => {
-    // Sort all requests by creation date, newest first
-    return [...allRequests].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return [...allRequests].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
   }, [allRequests]);
 
   const renderContent = () => {
@@ -130,7 +220,9 @@ export default function ViewingRequestsPage() {
       return (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-10 w-10 text-green-700 animate-spin" />
-          <p className="ml-3 text-lg text-gray-600">Loading viewing requests...</p>
+          <p className="ml-3 text-lg text-gray-600">
+            Loading viewing requests...
+          </p>
         </div>
       );
     }
@@ -155,27 +247,32 @@ export default function ViewingRequestsPage() {
 
     switch (activeTab) {
       case "upcoming":
-        requestsToDisplay = upcomingAcceptedRequests; // Use the dedicated hook's data
+        requestsToDisplay = upcomingAcceptedRequests;
         emptyMessageComponent = (
           <div className="text-center p-8 bg-blue-50 border border-blue-200 rounded-lg text-blue-700">
             <CalendarCheck className="h-10 w-10 mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">No Upcoming Viewings</h2>
-            <p>You currently have no confirmed upcoming viewing appointments.</p>
+            <p>
+              You currently have no confirmed upcoming viewing appointments.
+            </p>
           </div>
         );
         break;
       case "pending":
-        requestsToDisplay = pendingRequests; // Use the filtered pending list
+        requestsToDisplay = pendingRequests;
         emptyMessageComponent = (
           <div className="text-center p-8 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700">
             <Info className="h-10 w-10 mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">No Pending Requests</h2>
-            <p>You don't have any viewing requests awaiting confirmation at the moment.</p>
+            <p>
+              You don't have any viewing requests awaiting confirmation at the
+              moment.
+            </p>
           </div>
         );
         break;
       case "all":
-        requestsToDisplay = sortedAllRequests; // Use the sorted all history list
+        requestsToDisplay = sortedAllRequests;
         emptyMessageComponent = (
           <div className="text-center p-8 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
             <CalendarCheck className="h-10 w-10 mx-auto mb-4" />
@@ -193,7 +290,7 @@ export default function ViewingRequestsPage() {
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="flex flex-col space-y-6">
         {requestsToDisplay.map((request) => (
           <ViewingRequestCard key={request.request_id} request={request} />
         ))}
@@ -219,9 +316,13 @@ export default function ViewingRequestsPage() {
               }`}
           >
             Upcoming
-            {(loadingUpcoming || upcomingAcceptedRequests.length > 0) && ( // Use upcomingAcceptedRequests for count
+            {(loadingUpcoming || upcomingAcceptedRequests.length > 0) && (
               <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-green-500 rounded-full">
-                {loadingUpcoming ? <Loader2 className="h-3 w-3 animate-spin" /> : upcomingAcceptedRequests.length}
+                {loadingUpcoming ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  upcomingAcceptedRequests.length
+                )}
               </span>
             )}
           </button>
@@ -237,7 +338,11 @@ export default function ViewingRequestsPage() {
             Pending
             {(loadingAll || pendingRequests.length > 0) && (
               <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-yellow-500 rounded-full">
-                {loadingAll ? <Loader2 className="h-3 w-3 animate-spin" /> : pendingRequests.length}
+                {loadingAll ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  pendingRequests.length
+                )}
               </span>
             )}
           </button>
@@ -253,7 +358,11 @@ export default function ViewingRequestsPage() {
             All History
             {(loadingAll || allRequests.length > 0) && (
               <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-gray-500 rounded-full">
-                {loadingAll ? <Loader2 className="h-3 w-3 animate-spin" /> : allRequests.length}
+                {loadingAll ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  allRequests.length
+                )}
               </span>
             )}
           </button>

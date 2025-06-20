@@ -8,8 +8,8 @@ RUN npm ci
 
 COPY . .
 
-# --- ADD THESE DEBUGGING LINES ---
-RUN echo "--- Listing /app before build ---"
+# --- ADDED DEBUGGING LINES (Good to keep for now) ---
+RUN echo "--- Listing /app in base stage before build ---"
 RUN ls -la /app
 RUN echo "--- Running npm run build ---"
 RUN npm run build
@@ -30,8 +30,11 @@ COPY --from=base /app/public ./public
 COPY --from=base /app/.next ./.next
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/package.json ./package.json
+# --- CRUCIAL ADDITION HERE (without the comment) ---
+COPY --from=base /app/next.config.ts ./next.config.ts
+# --- END CRUCIAL ADDITION ---
 
-# --- ADD THESE DEBUGGING LINES ---
+# --- ADDED DEBUGGING LINES (Good to keep for now) ---
 RUN echo "--- Listing /app in runner stage after copy ---"
 RUN ls -la /app
 RUN echo "--- Listing /app/.next in runner stage after copy ---"

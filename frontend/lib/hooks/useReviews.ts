@@ -1,21 +1,20 @@
 // lib/hooks/useReviews.ts
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 import {
   createReview,
   fetchMyReviews,
-  fetchReviewsForProperty, // Assuming this utility now handles the new ReviewResponse type
+  fetchReviewsForProperty,
   updateReviewStatus,
   deleteReview,
   ReviewCreate,
-  ReviewResponse, // This should be the common interface for a review object
+  ReviewResponse,
   ReviewStatusUpdate,
   ReviewStatusEnum,
-} from '@/lib/utils/reviewFetcher'; // Ensure this path is correct for your project
+} from "@/lib/utils/reviewFetcher";
 
 // Re-exporting Review from reviewFetcher for consistency
-export type { ReviewResponse as Review } from '@/lib/utils/reviewFetcher';
-
+export type { ReviewResponse as Review } from "@/lib/utils/reviewFetcher";
 
 // TypeScript type for useCreateReview hook result
 export type UseCreateReviewResult = {
@@ -23,22 +22,32 @@ export type UseCreateReviewResult = {
   createdReview: ReviewResponse | null;
   isLoading: boolean;
   error: Error | null;
+  resetState: () => void; // Added resetState
 };
 
 /**
  * @function useCreateReview
  * @description A custom hook for creating a new review.
- * @returns {UseCreateReviewResult} An object containing the create review function, the created review data, loading state, and error state.
+ * @returns {UseCreateReviewResult} An object containing the create review function, the created review data, loading state, error state, and a function to reset the hook's state.
  */
 export const useCreateReview = (): UseCreateReviewResult => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
-  const [createdReview, setCreatedReview] = useState<ReviewResponse | null>(null);
+  const [createdReview, setCreatedReview] = useState<ReviewResponse | null>(
+    null
+  );
+
+  // New function to reset the state of this hook
+  const resetState = useCallback(() => {
+    setIsLoading(false);
+    setError(null);
+    setCreatedReview(null);
+  }, []);
 
   const createReviewFn = useCallback(async (reviewData: ReviewCreate) => {
     setIsLoading(true);
-    setError(null);
-    setCreatedReview(null); // Clear previous successful creation data
+    setError(null); // Clear error before new attempt
+    setCreatedReview(null); // Clear previous successful creation data before new attempt
     try {
       const response = await createReview(reviewData);
       setCreatedReview(response);
@@ -50,7 +59,7 @@ export const useCreateReview = (): UseCreateReviewResult => {
     }
   }, []);
 
-  return { createReviewFn, createdReview, isLoading, error };
+  return { createReviewFn, createdReview, isLoading, error, resetState };
 };
 
 // TypeScript type for useMyReviews hook result
@@ -93,7 +102,7 @@ export const useMyReviews = (): UseMyReviewsResult => {
 };
 
 // TypeScript type for useReviews (for property) hook result
-export type UseReviewsResult = { // Renamed for consistency if you're keeping the original hook name
+export type UseReviewsResult = {
   reviews: ReviewResponse[];
   isLoadingReviews: boolean;
   errorReviews: string | null;
@@ -106,14 +115,29 @@ export type UseReviewsResult = { // Renamed for consistency if you're keeping th
  * @param {string | number | null} propertyId - The ID of the property to fetch reviews for. Pass null or undefined to prevent fetching.
  * @returns {UseReviewsResult} An object containing the approved reviews, loading state, error state, and a refetch function.
  */
-export function useReviews(propertyId: string | number | null): UseReviewsResult {
+export function useReviews(
+  propertyId: string | number | null
+): UseReviewsResult {
   const [reviews, setReviews] = useState<ReviewResponse[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState<boolean>(true);
   const [errorReviews, setErrorReviews] = useState<string | null>(null);
 
+  console.log(`[useReviews Hook] Initial propertyId received: ${propertyId}`);
+
   const getReviews = useCallback(async () => {
-    // Check if propertyId is valid (not null, undefined, or an empty string if string type is allowed)
-    if (propertyId === null || propertyId === undefined || (typeof propertyId === 'string' && propertyId.trim() === '') || (typeof propertyId === 'number' && isNaN(propertyId))) {
+    console.log(
+      `[useReviews Hook] getReviews useCallback triggered. propertyId: ${propertyId}`
+    );
+
+    if (
+      propertyId === null ||
+      propertyId === undefined ||
+      (typeof propertyId === "string" && propertyId.trim() === "") ||
+      (typeof propertyId === "number" && isNaN(propertyId))
+    ) {
+      console.warn(
+        `[useReviews Hook] Invalid propertyId detected: ${propertyId}. Skipping fetch.`
+      );
       setReviews([]);
       setIsLoadingReviews(false);
       setErrorReviews(null);
@@ -123,28 +147,62 @@ export function useReviews(propertyId: string | number | null): UseReviewsResult
     setIsLoadingReviews(true);
     setErrorReviews(null);
     try {
-      // Ensure propertyId is a number before passing to fetchReviewsForProperty
-      const numericPropertyId = typeof propertyId === 'string' ? parseInt(propertyId, 10) : propertyId;
+      const numericPropertyId =
+        typeof propertyId === "string" ? parseInt(propertyId, 10) : propertyId;
+      console.log(
+        `[useReviews Hook] Preparing to call fetchReviewsForProperty with numericPropertyId: ${numericPropertyId}`
+      );
+
       const data = await fetchReviewsForProperty(numericPropertyId);
-      setReviews(data.filter((review: ReviewResponse) => review.status === ReviewStatusEnum.Approved));
+      console.log(
+        `[useReviews Hook] Successfully fetched raw reviews data:`,
+        data
+      );
+
+      const approvedReviews = data.filter(
+        (review: ReviewResponse) => review.status === ReviewStatusEnum.Approved
+      );
+      console.log(
+        `[useReviews Hook] Filtered approved reviews:`,
+        approvedReviews
+      );
+
+      setReviews(approvedReviews);
     } catch (err: any) {
-      console.error(`Failed to fetch reviews for property ${propertyId}:`, err);
-      setErrorReviews(err.message || 'An unknown error occurred fetching reviews.');
+      console.error(
+        `[useReviews Hook] Error fetching reviews for property ${propertyId}:`,
+        err
+      );
+      setErrorReviews(
+        err.message || "An unknown error occurred fetching reviews."
+      );
     } finally {
       setIsLoadingReviews(false);
+      console.log(
+        `[useReviews Hook] Finished fetching reviews for propertyId: ${propertyId}. Loading state: ${false}`
+      );
     }
   }, [propertyId]);
 
   useEffect(() => {
+    console.log(`[useReviews Hook] useEffect triggered. Calling getReviews().`);
     getReviews();
   }, [getReviews]);
 
-  return { reviews, isLoadingReviews, errorReviews, refetchReviews: getReviews };
+  return {
+    reviews,
+    isLoadingReviews,
+    errorReviews,
+    refetchReviews: getReviews,
+  };
 }
 
 // TypeScript type for useUpdateReviewStatus hook result
 export type UseUpdateReviewStatusResult = {
-  updateStatusFn: (reviewId: number, statusData: ReviewStatusUpdate) => Promise<void>;
+  updateStatusFn: (
+    reviewId: number,
+    statusData: ReviewStatusUpdate
+  ) => Promise<void>;
   updatedReview: ReviewResponse | null;
   isLoading: boolean;
   error: Error | null;
@@ -158,22 +216,27 @@ export type UseUpdateReviewStatusResult = {
 export const useUpdateReviewStatus = (): UseUpdateReviewStatusResult => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
-  const [updatedReview, setUpdatedReview] = useState<ReviewResponse | null>(null);
+  const [updatedReview, setUpdatedReview] = useState<ReviewResponse | null>(
+    null
+  );
 
-  const updateStatusFn = useCallback(async (reviewId: number, statusData: ReviewStatusUpdate) => {
-    setIsLoading(true);
-    setError(null);
-    setUpdatedReview(null);
-    try {
-      const response = await updateReviewStatus(reviewId, statusData);
-      setUpdatedReview(response);
-    } catch (err: any) {
-      console.error(`Error updating status for review ${reviewId}:`, err);
-      setError(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const updateStatusFn = useCallback(
+    async (reviewId: number, statusData: ReviewStatusUpdate) => {
+      setIsLoading(true);
+      setError(null);
+      setUpdatedReview(null);
+      try {
+        const response = await updateReviewStatus(reviewId, statusData);
+        setUpdatedReview(response);
+      } catch (err: any) {
+        console.error(`Error updating status for review ${reviewId}:`, err);
+        setError(err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
 
   return { updateStatusFn, updatedReview, isLoading, error };
 };
@@ -193,7 +256,8 @@ export type UseDeleteReviewResult = {
  */
 export const useDeleteReview = (): UseDeleteReviewResult => {
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  const [isDeletedSuccessfully, setIsDeletedSuccessfully] = useState<boolean>(false);
+  const [isDeletedSuccessfully, setIsDeletedSuccessfully] =
+    useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
   const deleteReviewFn = useCallback(async (reviewId: number) => {
