@@ -9,7 +9,7 @@ import { fetchAuthenticated } from "./user-api"; // Adjust the import path as ne
 
 // Base URL for the API. In a real application, this would typically come from
 // environment variables (e.g., process.env.NEXT_PUBLIC_API_BASE_URL).
-const BASE_URL = "http://localhost:8000/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
 /**
  * @enum ReviewStatusEnum
