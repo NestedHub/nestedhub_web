@@ -5,14 +5,10 @@ import { useRouter } from "next/navigation";
 import { Search, Eye, Edit, Trash2 } from "lucide-react";
 import AdminSidebar from "@/component/admin/sidebar";
 import Pagination from "@/component/admin/pagination";
+import { propertyApi, type Property } from "@/lib/api/property";
+import { toast } from "react-hot-toast";
 
-interface Property {
-  id: string;
-  title: string;
-  type: string;
-  status: string;
-  dateList: string;
-}
+const ITEMS_PER_PAGE = 10;
 
 export default function RentalPropertiesPage() {
   const router = useRouter();
@@ -20,100 +16,77 @@ export default function RentalPropertiesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
+  // Debounce search term
   useEffect(() => {
-    const fetchProperties = async () => {
-      try {
-        const response = await fetch(
-          `${
-            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-          }/api/properties?page=${currentPage}`,
-          {
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch properties");
-        }
-
-        const data = await response.json();
-        setProperties(data.items);
-        setTotalPages(Math.ceil(data.total / data.per_page));
-      } catch (err) {
-        console.error("Error fetching properties:", err);
-        setError("Failed to load properties");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProperties();
-  }, [currentPage]);
-
-  // Filter properties based on search term
-  const filteredProperties = properties.filter(
-    (property) =>
-      property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleEdit = (id: string) => {
-    router.push(`/admin/property-listing/rent/edit/${id}`);
+  const fetchProperties = async () => {
+    try {
+      setIsLoading(true);
+      const response = await propertyApi.searchProperties({
+        status: 'rented',
+        keyword: debouncedSearchTerm || undefined,
+        offset: (currentPage - 1) * ITEMS_PER_PAGE,
+        limit: ITEMS_PER_PAGE,
+      });
+      setProperties(response?.items || []);
+      setTotalCount(response?.total || 0);
+      setTotalPages(Math.ceil((response?.total || 0) / ITEMS_PER_PAGE));
+    } catch (err) {
+      console.error("Error fetching properties:", err);
+      setProperties([]);
+      setTotalCount(0);
+      setTotalPages(1);
+      toast.error("Failed to load properties");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDelete = async (id: string) => {
+  useEffect(() => {
+    fetchProperties();
+  }, [currentPage, debouncedSearchTerm]);
+
+  const handleEdit = (id: number) => {
+    router.push(`/admin/propertylisting/rents/${id}/edit`);
+  };
+
+  const handleDelete = async (id: number) => {
     if (!window.confirm("Are you sure you want to delete this property?")) {
       return;
     }
 
     try {
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-        }/api/properties/${id}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete property");
-      }
-
-      // Remove the deleted property from the state
-      setProperties((prev) => prev.filter((property) => property.id !== id));
+      await propertyApi.deleteProperty(id);
+      toast.success("Property deleted successfully");
+      fetchProperties();
     } catch (err) {
       console.error("Error deleting property:", err);
-      alert("Failed to delete property");
+      toast.error("Failed to delete property");
     }
   };
 
-  const handleView = (id: string) => {
-    router.push(`/admin/property-listing/rent/${id}`);
+  const handleView = (id: number) => {
+    router.push(`/admin/propertylisting/rents/${id}`);
   };
-
-  if (error) {
-    return (
-      <AdminSidebar>
-        <div className="text-red-600">{error}</div>
-      </AdminSidebar>
-    );
-  }
 
   return (
     <AdminSidebar>
       <div>
-        <h1 className="text-2xl font-bold mb-6">Rental Properties</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Rental Properties</h1>
+          <div className="text-sm text-gray-500">
+            Total Properties: {totalCount}
+          </div>
+        </div>
 
         <div className="mb-4">
           <div className="relative w-64">
@@ -177,50 +150,50 @@ export default function RentalPropertiesPage() {
                     Loading...
                   </td>
                 </tr>
-              ) : filteredProperties.length === 0 ? (
+              ) : properties.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-4 text-center">
                     No properties found
                   </td>
                 </tr>
               ) : (
-                filteredProperties.map((property) => (
-                  <tr key={property.id} className="hover:bg-gray-50">
+                properties.map((property) => (
+                  <tr key={property.property_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {property.id}
+                      {property.property_id}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {property.title}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {property.type}
+                      {property.category}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                         {property.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {property.dateList}
+                      {new Date(property.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => handleEdit(property.id)}
+                          onClick={() => handleEdit(property.property_id)}
                           className="text-blue-600 hover:text-blue-900"
                           title="Edit"
                         >
                           <Edit size={18} />
                         </button>
                         <button
-                          onClick={() => handleDelete(property.id)}
+                          onClick={() => handleDelete(property.property_id)}
                           className="text-red-600 hover:text-red-900"
                           title="Delete"
                         >
                           <Trash2 size={18} />
                         </button>
                         <button
-                          onClick={() => handleView(property.id)}
+                          onClick={() => handleView(property.property_id)}
                           className="text-gray-600 hover:text-gray-900"
                           title="View Details"
                         >

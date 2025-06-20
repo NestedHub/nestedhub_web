@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import AdminSidebar from "@/component/admin/sidebar";
+import { adminApi } from "@/lib/api/admin";
+import { toast } from "react-hot-toast";
 
 export default function AdminLogoutPage() {
   const router = useRouter();
@@ -13,16 +15,27 @@ export default function AdminLogoutPage() {
     router.push("/admin/dashboard");
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setIsLoading(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        await adminApi.logout(token);
+      }
+    } catch (error) {
+      // Even if backend logout fails, proceed with client-side logout
+      console.error("Logout failed", error);
+    } finally {
+      // Clear all user-related data from storage
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+      
+      toast.success("Logged out successfully");
 
-    // Clear admin data from storage
-    localStorage.removeItem("admin");
-
-    // Redirect to admin login page after a short delay
-    setTimeout(() => {
+      // Redirect to login page
       router.push("/login");
-    }, 1000);
+    }
   };
 
   return (

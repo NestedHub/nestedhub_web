@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Eye, Trash2, Ban } from "lucide-react";
+import { Search, Eye, Trash2, Ban, Edit } from "lucide-react";
 import AdminSidebar from "@/component/admin/sidebar";
 import Pagination from "@/component/admin/pagination";
-import { userApi, type User } from "@/lib/api/user";
+import { adminApi, type User } from "@/lib/api/admin";
 import { toast } from "react-hot-toast";
 
 const ITEMS_PER_PAGE = 10;
@@ -24,6 +24,7 @@ export default function UserManagementPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1); // Reset to first page on new search
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -32,38 +33,24 @@ export default function UserManagementPage() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-
-      // First, get dashboard stats for accurate total count
-      const dashboardStats = await userApi.getDashboardStats();
-      setTotalCount(dashboardStats.totalUsers);
-      setTotalPages(Math.ceil(dashboardStats.totalUsers / ITEMS_PER_PAGE));
-
-      // Then get paginated results
-      const response = await userApi.listUsers({
-        role: "customer",
+      const searchParams = {
+        role: "customer" as const,
         name: debouncedSearchTerm || undefined,
-        email: debouncedSearchTerm || undefined,
+      };
+
+      // Get total count
+      const countResponse = await adminApi.getUserCount(searchParams);
+      setTotalCount(countResponse.total);
+      setTotalPages(Math.ceil(countResponse.total / ITEMS_PER_PAGE));
+
+      // Get paginated results
+      const response = await adminApi.listUsers({
+        ...searchParams,
         skip: (currentPage - 1) * ITEMS_PER_PAGE,
         limit: ITEMS_PER_PAGE,
       });
 
-      // Filter to ensure we only get customers
-      const customerUsers = response.filter((user) => user.role === "customer");
-      setUsers(customerUsers);
-
-      // If we're searching, update the total count based on filtered results
-      if (debouncedSearchTerm) {
-        const searchResults = await userApi.listAllUsers({
-          role: "customer",
-          name: debouncedSearchTerm || undefined,
-          email: debouncedSearchTerm || undefined,
-        });
-        const filteredCount = searchResults.filter(
-          (user) => user.role === "customer"
-        ).length;
-        setTotalCount(filteredCount);
-        setTotalPages(Math.ceil(filteredCount / ITEMS_PER_PAGE));
-      }
+      setUsers(response);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");
@@ -77,12 +64,12 @@ export default function UserManagementPage() {
   }, [currentPage, debouncedSearchTerm]);
 
   const handleDelete = async (userId: number) => {
-    if (!confirm("Are you sure you want to delete this user?")) {
+    if (!confirm("Are you sure you want to permanently delete this user? This action cannot be undone.")) {
       return;
     }
 
     try {
-      await userApi.deleteUser(userId);
+      await adminApi.deleteUser(userId, true); // Pass true for hard delete
       toast.success("User deleted successfully");
       fetchUsers(); // Refresh the list
     } catch (error) {
@@ -93,7 +80,7 @@ export default function UserManagementPage() {
 
   const handleBanToggle = async (userId: number, currentlyActive: boolean) => {
     try {
-      await userApi.toggleUserBan(userId, currentlyActive);
+      await adminApi.toggleUserBan(userId, currentlyActive);
       toast.success(
         currentlyActive
           ? "User banned successfully"
@@ -108,6 +95,10 @@ export default function UserManagementPage() {
 
   const handleView = (userId: number) => {
     router.push(`/admin/usermanagement/user/${userId}`);
+  };
+
+  const handleEdit = (userId: number) => {
+    router.push(`/admin/usermanagement/user/${userId}/edit`);
   };
 
   return (
@@ -204,6 +195,13 @@ export default function UserManagementPage() {
                           title="Delete"
                         >
                           <Trash2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(user.user_id)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit"
+                        >
+                          <Edit size={18} />
                         </button>
                         <button
                           onClick={() =>

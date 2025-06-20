@@ -1,153 +1,179 @@
-// This is a mock API service for properties
-// In a real application, this would fetch data from your backend API
-import type { Property as NewProperty } from "../mockData/properties"
+import { getAuthHeaders } from './auth';
+
+export interface PropertyImage {
+  image_id: number;
+  image_url: string;
+  is_primary: boolean;
+}
+
+export interface Feature {
+  feature_id: number;
+  feature_name: string;
+}
 
 export interface Property {
-  id: string
-  title: string
-  type: string
-  price: string
-  location: string
-  bedrooms: number
-  bathrooms: number
-  image: string
-  description?: string
-  features?: string[]
-  owner?: {
-    name: string
-    contact: string
-    email?: string
-  }
-  createdAt?: string
-  updatedAt?: string
+  property_id: number;
+  title: string;
+  description: string;
+  rent_price: number;
+  address: string;
+  city: string;
+  district: string;
+  commune: string;
+  latitude: number;
+  longitude: number;
+  bedrooms: number;
+  bathrooms: number;
+  floor_area: number;
+  status: 'pending' | 'available' | 'rented' | 'hidden';
+  category: string;
+  features: Feature[];
+  images: PropertyImage[];
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
 }
 
-// Convert new property format to old format for backward compatibility
-export function convertToOldPropertyFormat(newProperty: NewProperty): Property {
-  // Get the primary image or first image or default
-  let imageUrl = "/property.png"
-  if (newProperty.images && newProperty.images.length > 0) {
-    const primaryImage = newProperty.images.find((img) => img.isPrimary)
-    if (primaryImage && primaryImage.url) {
-      imageUrl = primaryImage.url
-    } else if (newProperty.images[0].url) {
-      imageUrl = newProperty.images[0].url
+export interface PropertySearchParams {
+  keyword?: string;
+  city_id?: number;
+  district_id?: number;
+  commune_id?: number;
+  category_id?: number;
+  status?: 'pending' | 'available' | 'rented' | 'hidden';
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+  offset?: number;
+  limit?: number;
+}
+
+export interface PropertyUpdateParams {
+    title?: string;
+    description?: string;
+    rent_price?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    floor_area?: number;
+    status?: 'pending' | 'available' | 'rented' | 'hidden';
+}
+
+export interface PropertyCountResponse {
+  total_properties: number;
+  available_properties: number;
+  rented_properties: number;
+  pending_properties: number;
+}
+
+
+export const propertyApi = {
+  // Search for properties
+  searchProperties: async (params: PropertySearchParams = {}): Promise<{ items: Property[], total: number }> => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/properties?${queryParams.toString()}`,
+      {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to search properties');
     }
-  }
 
-  return {
-    id: newProperty.id,
-    title: newProperty.title,
-    type: newProperty.type,
-    price: newProperty.price,
-    location: newProperty.location,
-    bedrooms: newProperty.bedrooms,
-    bathrooms: newProperty.bathrooms,
-    image: imageUrl,
-    description: newProperty.description,
-    features: newProperty.amenities?.map((a) => a.name) || [],
-    owner: {
-      name: newProperty.owner?.name || "",
-      contact: newProperty.owner?.phone || "",
-      email: newProperty.owner?.email,
-    },
-    createdAt: newProperty.createdAt,
-    updatedAt: newProperty.updatedAt,
-  }
-}
-
-// Mock data for properties
-const mockProperties: Property[] = [
-  {
-    id: "1",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    price: "$2000000",
-    location: "boul kerk, Phnom Penh",
-    bedrooms: 4,
-    bathrooms: 3,
-    image: "/property-image.jpg",
-    description: "A beautiful luxury apartment in the heart of downtown.",
-    features: ["Air Conditioning", "Parking", "Swimming Pool", "Gym"],
-    owner: {
-      name: "John Doe",
-      contact: "0987654321",
-      email: "john@example.com",
-    },
-    createdAt: "2023-01-15",
-    updatedAt: "2023-04-20",
+    const data = await response.json();
+    // Normalize for different backend shapes
+    if ('properties' in data && 'total' in data) {
+      return { items: data.properties, total: data.total };
+    }
+    if (Array.isArray(data)) {
+      return { items: data, total: data.length };
+    }
+    if ('items' in data && 'total' in data) {
+      return data;
+    }
+    if ('results' in data && 'count' in data) {
+      return { items: data.results, total: data.count };
+    }
+    // fallback
+    return { items: [], total: 0 };
   },
-  // More properties would be added here
-]
 
-// Get all properties with optional filtering
-export async function getProperties(filters?: {
-  type?: string
-  minPrice?: number
-  maxPrice?: number
-  bedrooms?: number
-  location?: string
-}): Promise<Property[]> {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  // Get a single property by ID
+  getProperty: async (propertyId: number): Promise<Property> => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/properties/${propertyId}`,
+      {
+        headers: await getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
 
-  let filteredProperties = [...mockProperties]
-
-  if (filters) {
-    if (filters.type) {
-      filteredProperties = filteredProperties.filter((p) => p.type === filters.type)
+    if (!response.ok) {
+      throw new Error('Failed to fetch property');
     }
 
-    if (filters.location) {
-      filteredProperties = filteredProperties.filter((p) =>
-        p.location.toLowerCase().includes(filters.location!.toLowerCase()),
-      )
+    return response.json();
+  },
+
+  // Update a property
+  updateProperty: async (propertyId: number, data: PropertyUpdateParams): Promise<Property> => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/properties/${propertyId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(await getAuthHeaders()),
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to update property');
     }
 
-    if (filters.minPrice) {
-      filteredProperties = filteredProperties.filter(
-        (p) => Number.parseInt(p.price.replace(/\D/g, "")) >= filters.minPrice!,
-      )
-    }
+    return response.json();
+  },
 
-    if (filters.maxPrice) {
-      filteredProperties = filteredProperties.filter(
-        (p) => Number.parseInt(p.price.replace(/\D/g, "")) <= filters.maxPrice!,
-      )
-    }
+  // Get property counts
+  getPropertyCounts: async (): Promise<PropertyCountResponse> => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/properties/count`,
+      {
+        headers: await getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
 
-    if (filters.bedrooms) {
-      filteredProperties = filteredProperties.filter((p) => p.bedrooms >= filters.bedrooms!)
+    if (!response.ok) {
+      throw new Error('Failed to fetch property counts');
+    }
+    
+    return response.json();
+  },
+
+  // Delete a property
+  deleteProperty: async (propertyId: number): Promise<void> => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/properties/${propertyId}`,
+      {
+        method: 'DELETE',
+        headers: await getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to delete property');
     }
   }
-
-  return filteredProperties
-}
-
-// Get a single property by ID
-export async function getPropertyById(id: string): Promise<Property | null> {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  const property = mockProperties.find((p) => p.id === id)
-  return property || null
-}
-
-// Get properties by type
-export async function getPropertiesByType(type: string): Promise<Property[]> {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  return mockProperties.filter((p) => p.type.toLowerCase() === type.toLowerCase())
-}
-
-// Get new listings (most recently added)
-export async function getNewListings(limit = 3): Promise<Property[]> {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  // Sort by createdAt date and take the most recent ones
-  return [...mockProperties]
-    .sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime())
-    .slice(0, limit)
-}
+}; 

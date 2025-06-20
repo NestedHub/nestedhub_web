@@ -61,7 +61,7 @@ def init_db(session: Session) -> None:
     # Load Property Categories from CSV
     pass
 
-    '''with open('app/data/property_features.csv', mode='r', newline='', encoding='utf-8') as file:
+    ''' with open('app/data/property_features.csv', mode='r', newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
 
         feature_names = set()

@@ -151,16 +151,6 @@ const AdminSidebar = memo(function AdminSidebar({ children }: SidebarProps) {
                       Rentals
                     </Link>
                   </li>
-                  <li>
-                    <Link
-                      href="/admin/propertylisting/propertyrequest"
-                      className={`block p-2 rounded-md hover:bg-gray-100 ${
-                        pathname === "/admin/propertylisting/propertyrequest" ? "text-green-800" : "text-gray-600"
-                      }`}
-                    >
-                      Property Requests
-                    </Link>
-                  </li>
                 </ul>
               )}
             </li>
