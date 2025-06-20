@@ -1,69 +1,112 @@
 "use client";
 
-import type React from "react";
-
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
 import Image from "next/image";
+import { Loader2 } from "lucide-react";
+
 import Sidebar from "@/component/dashoboadpropertyowner/sidebar";
+import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 
 export default function SettingsPage() {
-  const [userInfo, setUserInfo] = useState({
-    fullName: "Song Lyne",
-    email: "songlyne@gmail.com",
-    phone: "+855123456789",
-  });
+  const { currentUser, isLoading, updateProfile, refetchCurrentUser } = useCurrentUser();
 
-  const [passwordInfo, setPasswordInfo] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
+  const [userInfo, setUserInfo] = useState({ name: "", email: "" });
+  const [passwordInfo, setPasswordInfo] = useState({ newPassword: "", confirmPassword: "" });
+  const [isInfoSubmitting, setIsInfoSubmitting] = useState(false);
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      setUserInfo({
+        name: currentUser.name || "",
+        email: currentUser.email || "",
+      });
+    }
+  }, [currentUser]);
 
   const handleUserInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setUserInfo((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setUserInfo((prev) => ({ ...prev, [name]: value }));
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setPasswordInfo((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setPasswordInfo((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleUserInfoSubmit = (e: React.FormEvent) => {
+  const handleUserInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("User info updated:", userInfo);
-    // Handle user info update logic
+    setIsInfoSubmitting(true);
+    toast.loading("Updating profile...");
+
+    try {
+      await updateProfile({ name: userInfo.name });
+      refetchCurrentUser(); // Re-fetch user data to update UI
+      toast.dismiss();
+      toast.success("Profile updated successfully!");
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(error.message || "Failed to update profile.");
+    } finally {
+      setIsInfoSubmitting(false);
+    }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Password updated:", passwordInfo);
-    // Handle password update logic
+    if (passwordInfo.newPassword !== passwordInfo.confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    if (!passwordInfo.newPassword) {
+      toast.error("Password cannot be empty.");
+      return;
+    }
+
+    setIsPasswordSubmitting(true);
+    toast.loading("Changing password...");
+
+    try {
+      await updateProfile({ password: passwordInfo.newPassword });
+      setPasswordInfo({ newPassword: "", confirmPassword: "" });
+      toast.dismiss();
+      toast.success("Password changed successfully!");
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(error.message || "Failed to change password.");
+    } finally {
+      setIsPasswordSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <Sidebar>
+        <div className="flex justify-center items-center h-full">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="ml-2">Loading settings...</p>
+        </div>
+      </Sidebar>
+    );
+  }
 
   return (
     <Sidebar>
-      <div className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Setting</h1>
+      <div className="p-6 max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
         <div className="mb-8">
-          <h2 className="text-lg font-medium mb-4">User setting</h2>
-
-          <div className="flex flex-col md:flex-row gap-6">
+          <h2 className="text-lg font-medium mb-4">User Profile</h2>
+          <div className="flex flex-col md:flex-row gap-6 bg-white p-6 rounded-lg border">
             <div className="flex-shrink-0">
               <div className="relative w-24 h-24">
                 <Image
-                  src="/avatar-placeholder.png"
+                  src={currentUser?.profile_picture_url || "/avatar-placeholder.png"}
                   alt="User Avatar"
                   width={96}
                   height={96}
-                  className="rounded-full border-4 border-white shadow"
+                  className="rounded-full border-4 border-white shadow object-cover"
                 />
               </div>
             </div>
@@ -71,50 +114,35 @@ export default function SettingsPage() {
             <div className="flex-grow max-w-md">
               <form onSubmit={handleUserInfoSubmit} className="space-y-4">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">Full Name</label>
                   <input
                     type="text"
-                    name="fullName"
+                    name="name"
                     placeholder="Full Name"
-                    value={userInfo.fullName}
+                    value={userInfo.name}
                     onChange={handleUserInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
-
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
                   <input
                     type="email"
                     name="email"
                     placeholder="Email"
                     value={userInfo.email}
-                    onChange={handleUserInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    readOnly
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-100"
                   />
                 </div>
-
-                <div>
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Phone Number"
-                    value={userInfo.phone}
-                    onChange={handleUserInfoChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-
                 <div>
                   <button
                     type="submit"
-                    className="bg-[#b8c75b] hover:bg-[#a3b148] text-white py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                    disabled={isInfoSubmitting}
+                    className="bg-[#b8c75b] hover:bg-[#a3b148] text-white py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400 flex items-center"
                   >
+                    {isInfoSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                     Save changes
-                  </button>
-                  <button
-                    type="button"
-                    className="ml-4 text-sm text-blue-600 hover:underline"
-                  >
-                    Forgot your password?
                   </button>
                 </div>
               </form>
@@ -124,50 +152,42 @@ export default function SettingsPage() {
 
         <div className="mt-8 max-w-md">
           <h2 className="text-lg font-medium mb-4">Change password</h2>
-
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <div>
-              <input
-                type="password"
-                name="currentPassword"
-                placeholder="Your old password"
-                value={passwordInfo.currentPassword}
-                onChange={handlePasswordChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <input
-                type="password"
-                name="newPassword"
-                placeholder="New Password"
-                value={passwordInfo.newPassword}
-                onChange={handlePasswordChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <input
-                type="password"
-                name="confirmPassword"
-                placeholder="Confirm Password"
-                value={passwordInfo.confirmPassword}
-                onChange={handlePasswordChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                className="bg-[#b8c75b] hover:bg-[#a3b148] text-white py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-              >
-                Save changes
-              </button>
-            </div>
-          </form>
+          <div className="bg-white p-6 rounded-lg border">
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+               <div>
+                 <label className="block text-sm font-medium text-gray-700">New Password</label>
+                <input
+                  type="password"
+                  name="newPassword"
+                  placeholder="New Password"
+                  value={passwordInfo.newPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  placeholder="Confirm Password"
+                  value={passwordInfo.confirmPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <button
+                  type="submit"
+                  disabled={isPasswordSubmitting}
+                  className="bg-[#b8c75b] hover:bg-[#a3b148] text-white py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400 flex items-center"
+                >
+                  {isPasswordSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Save new password
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </Sidebar>

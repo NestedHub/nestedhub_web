@@ -1,6 +1,6 @@
 import logging
 from decimal import Decimal
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, delete
 from collections import defaultdict
 from app.models.enums import UserRole, PropertyStatusEnum
 from app.models.property_schemas import (
@@ -10,9 +10,9 @@ from app.models.property_schemas import (
 )
 from app.models.models import (
     Property, User, PropertyPricing, PropertyMedia, PropertyLocation,
-    PropertyCategory, City, District, Commune, Feature, PropertyFeature, WishList
+    PropertyCategory, City, District, Commune, Feature, PropertyFeature, WishList, Review
 )
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 from typing import Optional, List
@@ -428,7 +428,7 @@ def delete_property(
     current_user: User
 ) -> None:
     """
-    Delete a property and its associated data.
+    Delete a property and its associated data, ensuring all related records are removed first.
 
     Args:
         session: SQLModel database session.
@@ -436,22 +436,41 @@ def delete_property(
         current_user: Authenticated user deleting the property.
 
     Raises:
-        HTTPException: If the property is not found or user is not authorized.
+        HTTPException: If property not found, user unauthorized, or on database integrity error.
     """
-    property = session.get(Property, property_id)
-    if not property:
-        raise HTTPException(
-            status_code=404, detail=f"Property with ID {property_id} not found")
-    if property.user_id != current_user.user_id and current_user.role != UserRole.admin:
-        raise HTTPException(
-            status_code=403, detail="Not authorized to delete this property")
-    if not current_user.is_active:
-        raise HTTPException(status_code=403, detail="Account is deactivated")
+    db_property = session.get(Property, property_id)
+    if not db_property:
+        raise HTTPException(status_code=404, detail=f"Property with ID {property_id} not found")
 
-    logger.info(
-        f"Property {property_id} deleted by user {current_user.user_id}")
-    session.delete(property)
-    session.commit()
+    if db_property.user_id != current_user.user_id and current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this property")
+
+    try:
+        # Explicitly delete related records in the correct order
+        session.exec(delete(Review).where(Review.property_id == property_id))
+        session.exec(delete(WishList).where(WishList.property_id == property_id))
+        session.exec(delete(PropertyFeature).where(PropertyFeature.property_id == property_id))
+        session.exec(delete(PropertyMedia).where(PropertyMedia.property_id == property_id))
+        session.exec(delete(PropertyLocation).where(PropertyLocation.property_id == property_id))
+        session.exec(delete(PropertyPricing).where(PropertyPricing.property_id == property_id))
+        
+        # Now delete the property itself
+        session.delete(db_property)
+        session.commit()
+        
+        logger.info(f"Property {property_id} and all related data deleted by user {current_user.user_id}")
+
+    except IntegrityError as e:
+        session.rollback()
+        logger.error(f"Integrity error while deleting property {property_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete property due to existing relationships. Please ensure all related data is handled."
+        )
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Database error while deleting property {property_id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred.")
 
 
 def get_property_detail_by_id(

@@ -13,7 +13,6 @@ export interface WishListResponse {
   added_at: string; // datetime string, e.g., "2025-06-10T21:46:00Z"
 }
 
-
 export interface ApiPropertyMedia {
   media_url: string;
   media_type: string; // e.g., "image", "video"
@@ -88,35 +87,20 @@ export interface ApiPublicUser { // Renamed from PublicUser to ApiPublicUser for
 // These are the types your React components and hooks will generally work with after transformation or combination.
 
 export interface PropertyMedia {
-  id: number;
-  url: string; // Assuming nulls are filtered out by the hook
-  is_main: boolean;
+  media_url: string;
+  media_type: string;
 }
 
-export interface PropertyLocation { // Kept identical for now
-  location_id: number;
-  property_id: number;
-  city_id: number;
-  district_id: number;
-  commune_id: number;
-  street_number: string;
-  latitude: number;
-  longitude: number;
-  city_name: string;
-  district_name: string;
-  commune_name: string;
+export interface PropertyFeature {
+  feature_id: number;
+  feature_name: string;
 }
 
-export interface PropertyPricing { // Kept identical for now
-  rent_price: number;
-  deposit?: number;
-  electricity_price?: number;
-  water_price?: number;
-  other_price?: number;
-  available_from: string;
+export interface PropertyCategory {
+  category_id: number;
+  category_name: string;
 }
 
-// Your application's internal Property type (transformed from ApiProperty)
 export interface Property {
   property_id: number;
   title: string;
@@ -128,12 +112,23 @@ export interface Property {
   status: string;
   updated_at: string;
   listed_at: string;
-  user_id: number;
-  category_name: string;
-  pricing: PropertyPricing;
-  location: PropertyLocation;
+  owner_id: number;
+  category: PropertyCategory;
+  pricing: {
+    rent_price: number;
+    available_from: string;
+  };
+  location: {
+    location_id: number;
+    street_number: string;
+    latitude: number;
+    longitude: number;
+    city: { city_id: number; city_name: string };
+    district: { district_id: number; district_name: string };
+    commune: { commune_id: number; commune_name: string };
+  };
   media: PropertyMedia[];
-  features: string[];
+  features: PropertyFeature[];
 }
 
 // Public User object consumed by components

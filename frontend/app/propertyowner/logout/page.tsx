@@ -3,27 +3,33 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { toast } from "react-hot-toast";
 import Sidebar from "@/component/dashoboadpropertyowner/sidebar";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 export default function LogoutPage() {
   const router = useRouter();
+  const { logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCancel = () => {
-    router.push("/dashboard");
+    router.back(); // Go back to the previous page
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setIsLoading(true);
+    toast.loading("Logging out...");
 
-    // Clear user data from storage
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
-
-    // Redirect to login page after a short delay
-    setTimeout(() => {
+    try {
+      await logout();
+      toast.dismiss();
+      toast.success("You have been logged out.");
       router.push("/login");
-    }, 1000);
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Logout failed. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -40,7 +46,7 @@ export default function LogoutPage() {
 
         <h1 className="text-2xl font-bold mb-6">Log Out</h1>
 
-        <p className="text-lg mb-8">Are you sure to log out?</p>
+        <p className="text-lg mb-8">Are you sure you want to log out?</p>
 
         <div className="flex space-x-4">
           <button

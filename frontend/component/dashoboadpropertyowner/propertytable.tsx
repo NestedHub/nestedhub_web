@@ -1,97 +1,103 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { Edit, Eye, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Edit, Eye, Trash2, ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react"
+import { toast } from "react-hot-toast"
+import { propertyApi } from '@/lib/api/property'
 
-// Mock data for properties
-const mockProperties = [
-  {
-    id: "01",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "02",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "03",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "04",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "05",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "06",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-  {
-    id: "07",
-    title: "Luxury Apartment in Downtown",
-    type: "Apartment",
-    status: "For rent",
-    dateList: "04 Sep 2024",
-  },
-]
+// A simple debounce function
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+  let timeout: NodeJS.Timeout | null = null
+
+  return (...args: Parameters<F>): Promise<ReturnType<F>> => {
+    return new Promise(resolve => {
+      if (timeout) {
+        clearTimeout(timeout)
+      }
+      timeout = setTimeout(() => resolve(func(...args)), waitFor)
+    })
+  }
+}
+
+// This type MUST match the PropertyOwnerListing model from the backend
+interface PropertyListing {
+  property_id: number;
+  title: string;
+  category: string;
+  status: string;
+  date_listed: string;
+}
 
 export default function PropertyTable() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  
+  const [allProperties, setAllProperties] = useState<PropertyListing[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState("")
 
-  // Filter properties based on search term
-  const filteredProperties = mockProperties.filter(
-    (property) =>
-      property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.status.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const fetchProperties = useCallback(async (term: string) => {
+    setIsLoading(true)
+    setError("")
+    try {
+      const data = await propertyApi.getOwnerListings(term)
+      setAllProperties(data.properties || [])
+      setCurrentPage(1) // Reset to first page on new search
+    } catch (err) {
+      setError("Failed to load properties")
+      toast.error("Failed to load your properties. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
-  // Calculate pagination
-  const indexOfLastItem = currentPage * itemsPerPage
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage
-  const currentItems = filteredProperties.slice(indexOfFirstItem, indexOfLastItem)
-  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage)
+  const debouncedFetch = useMemo(() => debounce(fetchProperties, 300), [fetchProperties])
 
-  const handleViewDetails = (id: string) => {
+  useEffect(() => {
+    debouncedFetch(searchTerm)
+  }, [searchTerm, debouncedFetch])
+
+
+  const paginatedProperties = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return allProperties.slice(startIndex, startIndex + itemsPerPage)
+  }, [allProperties, currentPage, itemsPerPage])
+
+  const totalPages = Math.ceil(allProperties.length / itemsPerPage)
+
+  const handleViewDetails = (id: string | number) => {
     router.push(`/propertyowner/property/${id}`)
   }
 
-  const handleEdit = (id: string) => {
+  const handleEdit = (id: number) => {
     router.push(`/propertyowner/property/edit/${id}`)
   }
 
-  const handleDelete = (id: string) => {
-    // In a real app, you would call an API to delete the property
-    alert(`Delete property with ID: ${id}`)
+  const handleDelete = async (id: number) => {
+    if (window.confirm("Are you sure you want to delete this property? This action cannot be undone.")) {
+      const toastId = toast.loading("Deleting property...")
+      try {
+        await propertyApi.deleteProperty(String(id))
+        toast.success("Property deleted successfully.", { id: toastId })
+        // Refetch properties after deletion
+        fetchProperties(searchTerm)
+      } catch (error) {
+        toast.error("Failed to delete property.", { id: toastId })
+      }
+    }
   }
 
   const handlePageChange = (pageNumber: number) => {
-    setCurrentPage(pageNumber)
+    if (pageNumber > 0 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber)
+    }
+  }
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
   }
 
   return (
@@ -100,25 +106,12 @@ export default function PropertyTable() {
         <div className="relative w-64">
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search by title..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 pl-8"
+            onChange={handleSearchChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 pr-10"
           />
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 absolute left-2.5 top-3 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
         </div>
 
         <button
@@ -133,149 +126,90 @@ export default function PropertyTable() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                ID
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Title
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Type
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Status
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Date List
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Action
-              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Listed</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {currentItems.map((property) => (
-              <tr key={property.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.id}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{property.title}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.type}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                    {property.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.dateList}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(property.id)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Edit"
-                    >
-                      <Edit size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(property.id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleViewDetails(property.id)}
-                      className="text-gray-600 hover:text-gray-900"
-                      title="View Details"
-                    >
-                      <Eye size={18} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {isLoading && allProperties.length === 0 ? (
+              <tr><td colSpan={5} className="text-center py-8"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></td></tr>
+            ) : error ? (
+              <tr><td colSpan={5} className="text-center py-8 text-red-600">{error}</td></tr>
+            ) : paginatedProperties.length === 0 ? (
+              <tr><td colSpan={5} className="text-center py-8 text-gray-500">No properties found.</td></tr>
+            ) : (
+              paginatedProperties.map((property) => (
+                <tr key={property.property_id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{property.title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.category}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${property.status === 'available' ? 'bg-green-100 text-green-800' :
+                       property.status === 'rented' ? 'bg-red-100 text-red-800' :
+                       'bg-yellow-100 text-yellow-800'}`}>
+                      {property.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(property.date_listed).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => handleViewDetails(property.property_id)}
+                        className="text-gray-600 hover:text-gray-900"
+                        title="View Details"
+                      >
+                        <Eye size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(property.property_id)}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="Edit"
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(property.property_id)}
+                        className="text-red-600 hover:text-red-900"
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
-
-      <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-gray-700">
-          Show rows:
-          <select
-            value={itemsPerPage}
-            onChange={(e) => setItemsPerPage(Number(e.target.value))}
-            className="ml-2 border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <option value={10}>10 items</option>
-            <option value={20}>20 items</option>
-            <option value={50}>50 items</option>
-          </select>
-        </div>
-
-        <div className="flex space-x-1">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-2 py-1 rounded-md ${
-              currentPage === 1 ? "text-gray-400 cursor-not-allowed" : "text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <ChevronLeft size={16} />
-          </button>
-
-          {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1).map((number) => (
+      
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-4">
+          <span className="text-sm text-gray-700">
+            Showing {paginatedProperties.length} of {allProperties.length} properties
+          </span>
+          <div className="flex items-center">
             <button
-              key={number}
-              onClick={() => handlePageChange(number)}
-              className={`px-3 py-1 rounded-md ${
-                currentPage === number ? "bg-green-800 text-white" : "text-gray-700 hover:bg-gray-200"
-              }`}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1 || isLoading}
+              className="p-2 rounded-md bg-gray-200 text-gray-700 mr-2 disabled:opacity-50"
             >
-              {number}
+              <ChevronLeft size={16} />
             </button>
-          ))}
-
-          {totalPages > 3 && (
-            <>
-              <span className="px-2 py-1">...</span>
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                className={`px-3 py-1 rounded-md ${
-                  currentPage === totalPages ? "bg-green-800 text-white" : "text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {totalPages}
-              </button>
-            </>
-          )}
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-2 py-1 rounded-md ${
-              currentPage === totalPages ? "text-gray-400 cursor-not-allowed" : "text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <ChevronRight size={16} />
-          </button>
+            <span className="px-2 py-1 text-sm">Page {currentPage} of {totalPages}</span>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages || isLoading}
+              className="p-2 rounded-md bg-gray-200 text-gray-700 ml-2 disabled:opacity-50"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
