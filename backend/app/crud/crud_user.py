@@ -712,10 +712,16 @@ def search_users(
     """
     query = select(User)
     
+    # Combined search for name and email
     if name:
-        query = query.where(User.name.ilike(f"%{name}%"))
-    if email:
-        query = query.where(User.email.ilike(f"%{email}%"))
+        search_term = f"%{name}%"
+        query = query.where(
+            or_(
+                User.name.ilike(search_term),
+                User.email.ilike(search_term)
+            )
+        )
+    
     if phone:
         query = query.where(User.phone.ilike(f"%{phone}%"))
     if role:
@@ -765,10 +771,16 @@ def get_user_count(
     """
     query = select(func.count()).select_from(User)
     
+    # Combined search for name and email
     if name:
-        query = query.where(User.name.ilike(f"%{name}%"))
-    if email:
-        query = query.where(User.email.ilike(f"%{email}%"))
+        search_term = f"%{name}%"
+        query = query.where(
+            or_(
+                User.name.ilike(search_term),
+                User.email.ilike(search_term)
+            )
+        )
+
     if phone:
         query = query.where(User.phone.ilike(f"%{phone}%"))
     if role:

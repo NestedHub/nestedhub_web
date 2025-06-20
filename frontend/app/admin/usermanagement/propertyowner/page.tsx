@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Eye, Trash2, Ban } from "lucide-react"
+import { Search, Eye, Trash2, Ban, Edit } from "lucide-react"
 import AdminSidebar from "@/component/admin/sidebar"
 import Pagination from "@/component/admin/pagination"
-import { userApi, type User } from "@/lib/api/user"
+import { adminApi, type User } from "@/lib/api/admin"
 import { toast } from "react-hot-toast"
 
 const ITEMS_PER_PAGE = 10;
@@ -23,91 +23,88 @@ export default function PropertyOwnerManagementPage() {
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+      setDebouncedSearchTerm(searchTerm)
+      setCurrentPage(1) // Reset to first page on new search
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
   // Fetch users with search and pagination
   const fetchUsers = async () => {
     try {
       setIsLoading(true)
-      
-      // First, get dashboard stats for accurate total count
-      const dashboardStats = await userApi.getDashboardStats();
-      setTotalCount(dashboardStats.totalPropertyOwners);
-      setTotalPages(Math.ceil(dashboardStats.totalPropertyOwners / ITEMS_PER_PAGE));
-
-      // Then get paginated results
-      const response = await userApi.listUsers({
-        role: 'property_owner',
+      const searchParams = {
+        role: "property_owner" as const,
         name: debouncedSearchTerm || undefined,
-        email: debouncedSearchTerm || undefined,
         is_approved: true,
+      }
+
+      // Get total count
+      const countResponse = await adminApi.getUserCount(searchParams)
+      setTotalCount(countResponse.total)
+      setTotalPages(Math.ceil(countResponse.total / ITEMS_PER_PAGE))
+
+      // Get paginated results
+      const response = await adminApi.listUsers({
+        ...searchParams,
         skip: (currentPage - 1) * ITEMS_PER_PAGE,
         limit: ITEMS_PER_PAGE,
-      });
+      })
 
-      // Filter to ensure we only get approved property owners
-      const propertyOwners = response.filter(user => 
-        user.role === 'property_owner' && user.is_approved
-      );
-      setUsers(propertyOwners);
-
-      // If we're searching, update the total count based on filtered results
-      if (debouncedSearchTerm) {
-        const searchResults = await userApi.listAllUsers({
-          role: 'property_owner',
-          name: debouncedSearchTerm || undefined,
-          email: debouncedSearchTerm || undefined,
-          is_approved: true,
-        });
-        const filteredCount = searchResults.filter(user => 
-          user.role === 'property_owner' && user.is_approved
-        ).length;
-        setTotalCount(filteredCount);
-        setTotalPages(Math.ceil(filteredCount / ITEMS_PER_PAGE));
-      }
+      setUsers(response)
     } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Failed to fetch users');
+      console.error("Error fetching users:", error)
+      toast.error("Failed to fetch users")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchUsers();
-  }, [currentPage, debouncedSearchTerm]);
+    fetchUsers()
+  }, [currentPage, debouncedSearchTerm])
 
   const handleDelete = async (userId: number) => {
-    if (!confirm('Are you sure you want to delete this property owner?')) {
-      return;
+    if (!confirm("Are you sure you want to permanently delete this property owner? This action cannot be undone.")) {
+      return
     }
 
     try {
-      await userApi.deleteUser(userId);
-      toast.success('Property owner deleted successfully');
-      fetchUsers(); // Refresh the list
+      await adminApi.deleteUser(userId, true) // Pass true for hard delete
+      toast.success("Property owner deleted successfully")
+      fetchUsers() // Refresh the list
     } catch (error) {
-      console.error('Error deleting property owner:', error);
-      toast.error('Failed to delete property owner');
+      console.error("Error deleting property owner:", error)
+      toast.error("Failed to delete property owner")
     }
-  };
+  }
 
   const handleBanToggle = async (userId: number, currentlyActive: boolean) => {
     try {
-      await userApi.toggleUserBan(userId, currentlyActive);
-      toast.success(currentlyActive ? 'Property owner banned successfully' : 'Property owner unbanned successfully');
-      fetchUsers(); // Refresh the list
+      // The endpoint expects `ban=true` to ban, and `ban=false` to unban.
+      // `currentlyActive` is true if the user is not banned.
+      // So, to ban an active user, we need to send `ban=true`.
+      // To unban an inactive (banned) user, we need to send `ban=false`.
+      // This means we send `ban=currentlyActive`.
+      await adminApi.toggleUserBan(userId, currentlyActive)
+      toast.success(
+        currentlyActive
+          ? "Property owner banned successfully"
+          : "Property owner unbanned successfully"
+      )
+      fetchUsers() // Refresh the list
     } catch (error) {
-      console.error('Error toggling property owner ban:', error);
-      toast.error('Failed to update property owner status');
+      console.error("Error toggling property owner ban:", error)
+      toast.error("Failed to update property owner status")
     }
-  };
+  }
 
   const handleView = (userId: number) => {
-    router.push(`/admin/usermanagement/propertyowner/${userId}`);
+    router.push(`/admin/usermanagement/propertyowner/${userId}`)
+  }
+
+  const handleEdit = (userId: number) => {
+    router.push(`/admin/usermanagement/propertyowner/${userId}/edit`);
   };
 
   return (
@@ -204,6 +201,13 @@ export default function PropertyOwnerManagementPage() {
                           title="Delete"
                         >
                           <Trash2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(user.user_id)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit"
+                        >
+                          <Edit size={18} />
                         </button>
                         <button
                           onClick={() => handleBanToggle(user.user_id, user.is_active)}

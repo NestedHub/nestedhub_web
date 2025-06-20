@@ -62,8 +62,7 @@ class User(SQLModel, table=True):
     wishlist_items: List["WishList"] = Relationship(back_populates="user")
     property_views: List["PropertyView"] = Relationship(back_populates="user")
     reviews: List["Review"] = Relationship(back_populates="user")
-    viewing_requests: List["ViewingRequest"] = Relationship(
-        back_populates="user")
+    viewing_requests: List["ViewingRequest"] = Relationship(back_populates="user")
 
 
 class PropertyCategory(SQLModel, table=True):
@@ -192,7 +191,7 @@ class Property(SQLModel, table=True):
 
 class WishList(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.user_id",
-                         primary_key=True, index=True)
+                         primary_key=True, index=True, ondelete="CASCADE")
     property_id: int = Field(
         foreign_key="property.property_id", primary_key=True, index=True, ondelete="CASCADE")
     added_at: datetime = Field(
@@ -203,7 +202,7 @@ class WishList(SQLModel, table=True):
 
 class ViewingRequest(SQLModel, table=True):
     request_id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.user_id", index=True)
+    user_id: int = Field(foreign_key="user.user_id", index=True, ondelete="CASCADE")
     property_id: int = Field(
         foreign_key="property.property_id", index=True, ondelete="CASCADE")
     requested_time: datetime = Field(...)
@@ -220,7 +219,7 @@ class ViewingRequest(SQLModel, table=True):
 
 class Review(SQLModel, table=True):
     review_id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.user_id", index=True)
+    user_id: int = Field(foreign_key="user.user_id", index=True, ondelete="CASCADE")
     property_id: int = Field(
         foreign_key="property.property_id", index=True, ondelete="CASCADE")
     rating: int = Field(..., sa_column=Column(
@@ -235,7 +234,7 @@ class Review(SQLModel, table=True):
 
 class PropertyView(SQLModel, table=True):
     view_id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.user_id", index=True)
+    user_id: int = Field(foreign_key="user.user_id", index=True, ondelete="CASCADE")
     property_id: int = Field(
         foreign_key="property.property_id", index=True, ondelete="CASCADE")
     viewed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(

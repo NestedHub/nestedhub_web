@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import { Search, Eye, Check, X } from "lucide-react"
 import AdminSidebar from "@/component/admin/sidebar"
 import Pagination from "@/component/admin/pagination"
-import { userApi, type User } from "@/lib/api/user"
+import { type User } from "@/lib/api/admin"
 import { toast } from "react-hot-toast"
+import { adminApi } from "@/lib/api/admin"
 
 const ITEMS_PER_PAGE = 10;
 
@@ -23,61 +24,51 @@ export default function PropertyOwnerRequestPage() {
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+      setDebouncedSearchTerm(searchTerm)
+      setCurrentPage(1) // Reset to first page on new search
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
   // Fetch users with search and pagination
   const fetchUsers = async () => {
     try {
       setIsLoading(true)
-      
-      // Get all pending requests first to get accurate count
-      const allPendingRequests = await userApi.listAllUsers({
-        role: 'property_owner',
-        name: debouncedSearchTerm || undefined,
-        email: debouncedSearchTerm || undefined,
-        is_approved: false,
-      });
 
-      // Filter to ensure we only get unapproved property owners
-      const totalRequests = allPendingRequests.filter(user => 
-        user.role === 'property_owner' && !user.is_approved
-      );
-      setTotalCount(totalRequests.length);
-      setTotalPages(Math.ceil(totalRequests.length / ITEMS_PER_PAGE));
+      const searchParams = {
+        role: "property_owner" as const,
+        name: debouncedSearchTerm || undefined,
+        is_approved: false,
+      }
+
+      // Get total count first
+      const countResponse = await adminApi.getUserCount(searchParams)
+      setTotalCount(countResponse.total)
+      setTotalPages(Math.ceil(countResponse.total / ITEMS_PER_PAGE))
 
       // Then get paginated results
-      const response = await userApi.listUsers({
-        role: 'property_owner',
-        name: debouncedSearchTerm || undefined,
-        email: debouncedSearchTerm || undefined,
-        is_approved: false,
+      const response = await adminApi.listUsers({
+        ...searchParams,
         skip: (currentPage - 1) * ITEMS_PER_PAGE,
         limit: ITEMS_PER_PAGE,
-      });
+      })
 
-      // Filter to ensure we only get unapproved property owners
-      const pendingRequests = response.filter(user => 
-        user.role === 'property_owner' && !user.is_approved
-      );
-      setUsers(pendingRequests);
+      setUsers(response)
     } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Failed to fetch property owner requests');
+      console.error("Error fetching users:", error)
+      toast.error("Failed to fetch property owner requests")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchUsers();
-  }, [currentPage, debouncedSearchTerm]);
+    fetchUsers()
+  }, [currentPage, debouncedSearchTerm])
 
   const handleApprove = async (userId: number) => {
     try {
-      await userApi.approvePropertyOwner(userId);
+      await adminApi.approvePropertyOwner(userId);
       toast.success('Property owner approved successfully');
       fetchUsers(); // Refresh the list
     } catch (error) {
@@ -92,7 +83,7 @@ export default function PropertyOwnerRequestPage() {
     }
 
     try {
-      await userApi.rejectPropertyOwner(userId);
+      await adminApi.rejectPropertyOwner(userId);
       toast.success('Property owner request rejected');
       fetchUsers(); // Refresh the list
     } catch (error) {

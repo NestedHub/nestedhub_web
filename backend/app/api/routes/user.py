@@ -286,6 +286,37 @@ def get_current_user_info(
     )
 
 
+@router.get("/count", response_model=UserCountResponse)
+def get_user_count_handler(
+    name: Optional[str] = Query(
+        None, description="Search by name (partial match)"),
+    email: Optional[str] = Query(
+        None, description="Search by email (partial match)"),
+    phone: Optional[str] = Query(
+        None, description="Search by phone (partial match)"),
+    role: Optional[UserRole] = Query(None, description="Filter by role"),
+    is_active: Optional[bool] = Query(
+        None, description="Filter by active status"),
+    is_approved: Optional[bool] = Query(
+        None, description="Filter by approval status"),
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Get total count of users with filters. Restricted to admins.
+    """
+    total = get_user_count(
+        session=session,
+        name=name,
+        email=email,
+        phone=phone,
+        role=role,
+        is_active=is_active,
+        is_approved=is_approved
+    )
+    return UserCountResponse(total=total)
+
+
 @router.get("/{user_id}", response_model=UserResponse)
 def get_user(
     user_id: int,
@@ -575,34 +606,3 @@ def ban_user(
         is_approved=user.is_approved,
         is_active=user.is_active
     )
-
-
-@router.get("/count", response_model=UserCountResponse)
-def get_user_count_handler(
-    name: Optional[str] = Query(
-        None, description="Search by name (partial match)"),
-    email: Optional[str] = Query(
-        None, description="Search by email (partial match)"),
-    phone: Optional[str] = Query(
-        None, description="Search by phone (partial match)"),
-    role: Optional[UserRole] = Query(None, description="Filter by role"),
-    is_active: Optional[bool] = Query(
-        None, description="Filter by active status"),
-    is_approved: Optional[bool] = Query(
-        None, description="Filter by approval status"),
-    session: Session = Depends(get_db_session),
-    current_user: User = Depends(require_admin)
-):
-    """
-    Get total count of users with filters. Restricted to admins.
-    """
-    total = get_user_count(
-        session=session,
-        name=name,
-        email=email,
-        phone=phone,
-        role=role,
-        is_active=is_active,
-        is_approved=is_approved
-    )
-    return UserCountResponse(total=total)

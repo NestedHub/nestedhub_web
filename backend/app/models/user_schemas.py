@@ -86,7 +86,7 @@ class PublicUserResponse(BaseModel):
 
 class UserCountResponse(BaseModel):
     total: int
-    expires_at: datetime
+    # expires_at: datetime # This was causing a 500 error
 
 class PublicUserResponse(BaseModel):
     user_id: int
