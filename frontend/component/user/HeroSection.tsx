@@ -21,7 +21,7 @@ export default function HeroSection() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-green-600 rounded-2xl transform rotate-3"></div>
           <Image
-            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-Q9cJFIDOa8MQNzZkw3gti1nVkvmcon.png"
+            src="/modern-house.jpg"
             alt="Modern Property"
             width={600}
             height={400}

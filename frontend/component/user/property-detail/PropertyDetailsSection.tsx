@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/component/ui/avatar";
 import { MapPin, Bed, Bath, Square, CalendarDays, Heart } from "lucide-react";
 import { Property, User } from '@/lib/types'; // Assuming you have these types
 import { formatDate } from "@/lib/utils/helpers"; // Import the helper
+import Link from 'next/link'; // Import the Link component
 
 interface PropertyDetailsSectionProps {
   property: Property;
@@ -33,15 +34,35 @@ export function PropertyDetailsSection({ property, owner }: PropertyDetailsSecti
           <Button variant="outline" size="icon" className="rounded-full w-10 h-10 text-gray-600 hover:bg-gray-100 hover:text-red-500 transition-colors">
             <Heart className="w-5 h-5" />
           </Button>
-            {/* Property Owner Info */}
-          <Avatar className="w-12 h-12 border-2 border-green-600">
-            <AvatarImage src={owner?.profile_picture_url || "/placeholder-avatar.jpg"} alt={owner?.name || "Property Owner"} />
-            <AvatarFallback className="text-green-800 bg-green-100 text-xl">{owner?.name ? owner.name.charAt(0) : "PO"}</AvatarFallback>
-          </Avatar>
-          <div className="text-sm">
-              <p className="font-semibold text-gray-800">{owner?.name || "Property Owner"}</p>
-              <p className="text-gray-600">Lister</p>
-          </div>
+          {/* Property Owner Info - Make clickable */}
+          {owner?.user_id ? ( // Only render Link if owner and user_id exist
+            <Link
+              href={`/user/profile/${owner.user_id}`}
+              className="flex items-center space-x-3 group cursor-pointer" // Moved className directly to Link
+            >
+              {/* REMOVED <a> TAG HERE */}
+              <Avatar className="w-12 h-12 border-2 border-green-600">
+                <AvatarImage src={owner.profile_picture_url || "/placeholder-avatar.jpg"} alt={owner.name || "Property Owner"} />
+                <AvatarFallback className="text-green-800 bg-green-100 text-xl">{owner.name ? owner.name.charAt(0) : "PO"}</AvatarFallback>
+              </Avatar>
+              <div className="text-sm">
+                <p className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{owner.name || "Property Owner"}</p>
+                <p className="text-gray-600">Lister</p>
+              </div>
+            </Link>
+          ) : (
+            // Fallback if owner or owner.user_id is not available (not clickable)
+            <div className="flex items-center space-x-3">
+              <Avatar className="w-12 h-12 border-2 border-green-600">
+                <AvatarImage src={owner?.profile_picture_url || "/placeholder-avatar.jpg"} alt={owner?.name || "Property Owner"} />
+                <AvatarFallback className="text-green-800 bg-green-100 text-xl">{owner?.name ? owner.name.charAt(0) : "PO"}</AvatarFallback>
+              </Avatar>
+              <div className="text-sm">
+                <p className="font-semibold text-gray-800">{owner?.name || "Property Owner"}</p>
+                <p className="text-gray-600">Lister</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -66,9 +87,9 @@ export function PropertyDetailsSection({ property, owner }: PropertyDetailsSecti
           </div>
         )}
         {property.status && (
-              <div className="flex items-center space-x-2">
-                <CalendarDays className="w-5 h-5 text-green-600" />
-                <span className="text-base text-gray-700 font-medium">Status: <span className="capitalize">{property.status}</span></span>
+            <div className="flex items-center space-x-2">
+              <CalendarDays className="w-5 h-5 text-green-600" />
+              <span className="text-base text-gray-700 font-medium">Status: <span className="capitalize">{property.status}</span></span>
             </div>
         )}
           {property.pricing.available_from && (

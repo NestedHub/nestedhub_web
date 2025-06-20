@@ -15,7 +15,7 @@
 
     export const metadata: Metadata = {
       title: "NestedHub",
-      description: "NestedHub",
+      description: "Nested Hub",
     };
 
     // Correctly import AuthProvider from the designated context file

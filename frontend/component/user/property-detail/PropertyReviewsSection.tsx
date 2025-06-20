@@ -132,6 +132,13 @@ export function PropertyReviewsSection({
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [reviewToDeleteId, setReviewToDeleteId] = useState<number | null>(null);
 
+  // State for general purpose message dialogs
+  const [showMessageDialog, setShowMessageDialog] = useState<boolean>(false);
+  const [messageDialogTitle, setMessageDialogTitle] = useState<string>("");
+  const [messageDialogDescription, setMessageDialogDescription] = useState<string>("");
+  const [isErrorDialog, setIsErrorDialog] = useState<boolean>(false); // To style error messages differently
+
+
   useEffect(() => {
     console.log(
       `[PropertyReviewsSection] Component mounted/re-rendered with propertyId: ${propertyId}, isAuthenticated: ${isAuthenticated}`
@@ -184,18 +191,39 @@ export function PropertyReviewsSection({
 
   useEffect(() => {
     console.log(`[PropertyReviewsSection] useCreateReview hook state updated:`, { isCreatingReview, createReviewError, createdReview });
-  }, [isCreatingReview, createReviewError, createdReview]);
+    if (createdReview) {
+      setMessageDialogTitle("Review Submitted");
+      setMessageDialogDescription("Your review has been submitted successfully and is awaiting moderation.");
+      setIsErrorDialog(false);
+      setShowMessageDialog(true);
+      refetchMyReviews(); // Refetch user's reviews to show the newly pending one
+      setNewComment(""); // Clear form after successful submission
+      setNewRating(5); // Reset rating
+    }
+    if (createReviewError) {
+      setMessageDialogTitle("Submission Failed");
+      setMessageDialogDescription(`Failed to submit review: ${createReviewError.message || "An unknown error occurred."}`);
+      setIsErrorDialog(true);
+      setShowMessageDialog(true);
+    }
+  }, [isCreatingReview, createReviewError, createdReview, refetchMyReviews]);
 
   useEffect(() => {
     console.log(`[PropertyReviewsSection] useDeleteReview hook state updated:`, { isDeleting, isDeletedSuccessfully, deleteReviewError });
     if (isDeletedSuccessfully) {
-      alert("Your review has been successfully deleted."); // You can replace this with a toast notification
+      setMessageDialogTitle("Review Deleted");
+      setMessageDialogDescription("Your review has been successfully deleted.");
+      setIsErrorDialog(false);
+      setShowMessageDialog(true);
       refetchMyReviews(); // Refetch user's reviews after successful deletion
       setShowDeleteDialog(false); // Close the dialog on success
       setReviewToDeleteId(null); // Clear the review ID
     }
     if (deleteReviewError) {
-      alert(`Failed to delete review: ${deleteReviewError.message || "An unknown error occurred."}`); // You can replace this with a toast notification
+      setMessageDialogTitle("Deletion Failed");
+      setMessageDialogDescription(`Failed to delete review: ${deleteReviewError.message || "An unknown error occurred."}`);
+      setIsErrorDialog(true);
+      setShowMessageDialog(true);
       setShowDeleteDialog(false); // Close the dialog on error
       setReviewToDeleteId(null); // Clear the review ID
     }
@@ -207,18 +235,27 @@ export function PropertyReviewsSection({
     console.log("[PropertyReviewsSection] handleReviewSubmit called.");
 
     if (!isAuthenticated) {
-      alert("Please log in to leave a review.");
+      setMessageDialogTitle("Authentication Required");
+      setMessageDialogDescription("Please log in to leave a review.");
+      setIsErrorDialog(true);
+      setShowMessageDialog(true);
       return;
     }
     if (!newComment.trim() || newRating < 1 || newRating > 5) {
-      alert("Please provide a comment and a rating between 1 and 5.");
+      setMessageDialogTitle("Invalid Input");
+      setMessageDialogDescription("Please provide a comment and a rating between 1 and 5.");
+      setIsErrorDialog(true);
+      setShowMessageDialog(true);
       return;
     }
 
     // If a pending review already exists, prevent new submission for this property
     if (userPendingReview) {
-        alert("You already have a pending review for this property. Please wait for moderation or delete your existing review to submit a new one.");
-        return;
+      setMessageDialogTitle("Pending Review Exists");
+      setMessageDialogDescription("You already have a pending review for this property. Please wait for moderation or delete your existing review to submit a new one.");
+      setIsErrorDialog(false); // Not an error, just a notice
+      setShowMessageDialog(true);
+      return;
     }
 
     const reviewData: ReviewCreate = {
@@ -234,16 +271,15 @@ export function PropertyReviewsSection({
     try {
       await createReviewFn(reviewData);
       console.log(
-        "[PropertyReviewsSection] createReviewFn successfully called. Clearing form."
+        "[PropertyReviewsSection] createReviewFn successfully called. State update will handle dialog."
       );
-      setNewComment("");
-      setNewRating(5);
-      refetchMyReviews(); // Refetch user's reviews to show the newly pending one
+      // State updates for success/error are handled in useEffect for createReviewFn
     } catch (error: any) {
       console.error(
-        "[PropertyReviewsSection] Failed to submit review in component catch block:",
+        "[PropertyReviewsSection] Failed to initiate review submission in component catch block (error handled by hook's useEffect):",
         error
       );
+      // The error dialog will be shown by the useEffect watching createReviewError
     }
   };
 
@@ -268,6 +304,7 @@ export function PropertyReviewsSection({
   };
 
   // Effect to reset create review state when comment or rating changes,
+  // or after a successful creation/error, so the next submission is clean.
   useEffect(() => {
     if (createdReview || createReviewError) {
       resetCreateReviewState();
@@ -348,7 +385,8 @@ export function PropertyReviewsSection({
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
                   />
                 </div>
-                {createReviewError && (
+                {/* These messages will now be handled by the dialog */}
+                {/* {createReviewError && (
                   <p className="text-red-500 text-sm mt-2 font-medium">
                     Error submitting review: {createReviewError.message}. Please try again.
                   </p>
@@ -357,7 +395,7 @@ export function PropertyReviewsSection({
                   <p className="text-green-600 text-base mt-2 font-semibold">
                     &#10003; Review submitted successfully! It will appear after moderation.
                   </p>
-                )}
+                )} */}
                 <Button type="submit" disabled={isCreatingReview}>
                   {isCreatingReview ? (
                     <>
@@ -438,6 +476,25 @@ export function PropertyReviewsSection({
               ) : (
                 "Delete"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generic Message Dialog */}
+      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className={isErrorDialog ? "text-red-600" : ""}>
+              {messageDialogTitle}
+            </DialogTitle>
+            <DialogDescription>
+              {messageDialogDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowMessageDialog(false)}>
+              Okay
             </Button>
           </DialogFooter>
         </DialogContent>

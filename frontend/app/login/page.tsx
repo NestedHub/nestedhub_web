@@ -163,7 +163,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-4 text-center">
-          <Link href="/" className="text-green-800 hover:text-green-700">
+          <Link href="/user" className="text-green-800 hover:text-green-700">
             Back to Home
           </Link>
         </div>
