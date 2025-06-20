@@ -18,6 +18,12 @@ import {
 
 const BASE_URL = "http://localhost:8000/api"; // Your API Base URL
 
+// Cloudinary Configuration (Publicly accessible keys for direct unsigned upload)
+// IMPORTANT: CLOUDINARY_API_SECRET MUST NOT BE EXPOSED ON THE CLIENT-SIDE.
+// For production, use signed uploads where a backend generates a signature.
+const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_API_KEY = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
+
 // --- Token Management Helpers (for client-side storage) ---
 // IMPORTANT: For production, consider using HttpOnly cookies for JWTs for better security.
 // localStorage is used here for simplicity as per your previous examples.
@@ -51,7 +57,6 @@ export function clearTokens() {
 }
 
 // --- Generic Fetch Helper for Authenticated Requests ---
-// ADDED 'export' KEYWORD HERE TO FIX THE ERROR
 export async function fetchAuthenticated<T>(
   endpoint: string,
   method: string,
@@ -60,11 +65,8 @@ export async function fetchAuthenticated<T>(
 ): Promise<T> {
   const token = getAccessToken();
   if (!token) {
-    // If no token, and it's an authenticated endpoint, redirect or throw
-    // For a robust app, dispatch a global logout or redirect to login.
     console.error("Authentication token is missing for authenticated request.");
-    clearTokens(); // Clear any potentially stale tokens
-    // Consider adding a redirect to login page here or letting the calling hook handle it
+    clearTokens();
     throw new Error("Authentication required: No token found.");
   }
 
@@ -87,7 +89,7 @@ export async function fetchAuthenticated<T>(
       body as Record<string, any>
     ).toString();
     endpoint = `${endpoint}?${queryParams}`;
-    delete options.body; // GET requests should not have a body
+    delete options.body;
   }
 
   const response = await fetch(`${BASE_URL}${endpoint}`, options);
@@ -96,12 +98,12 @@ export async function fetchAuthenticated<T>(
     console.error(
       `Authentication error: ${response.status} - ${response.statusText}`
     );
-    clearTokens(); // Clear tokens on auth failure
+    clearTokens();
     throw new Error("Unauthorized or Forbidden. Please re-authenticate.");
   }
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({})); // Attempt to parse JSON error, fallback to empty
+    const errorData = await response.json().catch(() => ({}));
     const errorMessage =
       errorData.detail ||
       errorData.message ||
@@ -109,16 +111,15 @@ export async function fetchAuthenticated<T>(
     throw new Error(errorMessage);
   }
 
-  // Handle 204 No Content responses (e.g., DELETE operations)
   if (response.status === 204) {
-    return null as T; // Explicitly return null for no content
+    return null as T;
   }
 
   return response.json() as Promise<T>;
 }
 
 // --- Generic Fetch Helper for Unauthenticated Requests ---
-export async function fetchUnauthenticated<T>( // Keep this exported as it might be used
+export async function fetchUnauthenticated<T>(
   endpoint: string,
   method: string,
   body?: object | URLSearchParams,
@@ -141,7 +142,7 @@ export async function fetchUnauthenticated<T>( // Keep this exported as it might
       body as Record<string, any>
     ).toString();
     endpoint = `${endpoint}?${queryParams}`;
-    delete options.body; // GET requests should not have a body
+    delete options.body;
   }
 
   const response = await fetch(`${BASE_URL}${endpoint}`, options);
@@ -162,7 +163,45 @@ export async function fetchUnauthenticated<T>( // Keep this exported as it might
   return response.json() as Promise<T>;
 }
 
-// --- API Functions ---
+// --- File Upload Helper (Cloudinary) ---
+/**
+ * Uploads a file to Cloudinary.
+ * IMPORTANT: This uses direct unsigned upload. For production, consider using
+ * signed uploads where a backend generates a secure signature.
+ * @param file The file to upload.
+ * @returns The secure URL of the uploaded file.
+ */
+export async function uploadFileToCloudinary(file: File): Promise<string> {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY) {
+    throw new Error("Cloudinary environment variables are not set.");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", "your_upload_preset"); // <<< IMPORTANT: Replace with your Cloudinary upload preset
+  formData.append("api_key", CLOUDINARY_API_KEY);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      errorData.error?.message || `Cloudinary upload failed: ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  return data.secure_url;
+}
+
+
+// --- API Functions (Aligned with useAuth's direct imports) ---
 
 // 1. Search Users (Admin Only)
 export async function searchUsers(
@@ -171,7 +210,7 @@ export async function searchUsers(
   return fetchAuthenticated<UserResponse[]>("/users/search", "GET", params);
 }
 
-// 2. Google Login
+// 2. Google Login (Returns URL as expected by useAuth's googleLoginRedirect)
 export async function googleLogin(): Promise<GoogleAuthUrlResponse> {
   return fetchUnauthenticated<GoogleAuthUrlResponse>(
     "/users/google/login",
@@ -181,9 +220,9 @@ export async function googleLogin(): Promise<GoogleAuthUrlResponse> {
 
 // 3. Google OAuth2 Callback
 export async function googleCallback(code: string): Promise<TokenResponse> {
-  const params = new URLSearchParams({ code });
+  // The API endpoint takes the code as a query parameter directly
   return fetchUnauthenticated<TokenResponse>(
-    `/users/google/callback?${params.toString()}`,
+    `/users/google/callback?code=${encodeURIComponent(code)}`,
     "GET"
   );
 }
@@ -215,7 +254,7 @@ export async function loginUser(
   );
 }
 
-// 6. Verify Email
+// 6. Verify Email (Returns TokenResponse as expected by useAuth's verifyEmailAction)
 export async function verifyEmail(
   data: VerifyEmailRequest
 ): Promise<TokenResponse> {
@@ -226,7 +265,7 @@ export async function verifyEmail(
   );
 }
 
-// 7. Request Password Reset
+// 7. Request Password Reset (Returns SuccessMessageResponse)
 export async function requestPasswordReset(
   data: PasswordResetRequest
 ): Promise<SuccessMessageResponse> {
@@ -237,7 +276,7 @@ export async function requestPasswordReset(
   );
 }
 
-// 8. Confirm Password Reset
+// 8. Confirm Password Reset (Returns SuccessMessageResponse)
 export async function confirmPasswordReset(
   data: PasswordResetConfirm
 ): Promise<SuccessMessageResponse> {

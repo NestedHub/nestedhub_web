@@ -1,4 +1,4 @@
-// app/user/profile/page.tsx
+// app/user/profile/me/page.tsx
 "use client";
 
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
