@@ -1,15 +1,15 @@
-"use client"; // This page remains a client component because it uses next/dynamic
+// app/auth/google/callback/page.tsx
+// No changes needed.
 
-import dynamic from "next/dynamic"; // Import dynamic for client-side rendering control
+"use client";
 
-// Dynamically import GoogleCallbackContent with SSR disabled.
-// This ensures that useSearchParams (and other client-only hooks within it)
-// are only executed in the browser, not during server-side prerendering.
+import dynamic from "next/dynamic";
+
 const GoogleCallbackContent = dynamic(
   () => import("./GoogleCallbackContent"),
   {
-    ssr: false, // This is the key: tells Next.js NOT to render this component on the server
-    loading: () => ( // Optional: A loading fallback to display while the client component loads
+    ssr: false,
+    loading: () => (
       <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-2xl space-y-8 text-center">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-blue-800">
           Google Login
@@ -26,15 +26,9 @@ const GoogleCallbackContent = dynamic(
   }
 );
 
-/**
- * The main Google Callback Page component.
- * It uses a dynamic import with ssr:false to ensure the core logic
- * involving useSearchParams only runs on the client.
- */
 export default function GoogleCallbackPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white py-12 px-4 sm:px-6 lg:px-8">
-      {/* Render the dynamically imported client-only component */}
       <GoogleCallbackContent />
     </div>
   );

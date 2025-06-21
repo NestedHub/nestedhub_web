@@ -1,7 +1,27 @@
 // lib/types.ts
 
 // --- API Response Specific Types ---
-// These interfaces reflect the EXACT shape of data received directly from your backend API endpoints.
+// These interfaces reflect the EXACT shape of data received directly from your backend API endpoints.]
+
+// @/lib/types.ts (or wherever PropertyLocation is defined)
+export interface PropertyLocation {
+  location_id: number;
+  street_number: string;
+  latitude: number;
+  longitude: number;
+  city: { // This structure matches your current data
+    city_id: number;
+    city_name: string;
+  };
+  district: {
+    district_id: number;
+    district_name: string;
+  };
+  commune: {
+    commune_id: number;
+    commune_name: string;
+  };
+}
 
 export interface WishListCreate {
   property_id: number;

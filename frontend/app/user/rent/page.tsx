@@ -13,8 +13,7 @@ import { WishListResponse } from "@/lib/types";
 import { useUser } from "@/lib/hooks/useUser";
 
 export default function PropertiesPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  const router = useRouter(); // searchParams can be removed if not directly used elsewhere
 
   console.log("PropertiesPage: Component rendering. Current time:", new Date().toISOString());
 
@@ -37,7 +36,7 @@ export default function PropertiesPage() {
     districts,
     communes,
     propertyCategories,
-  } = usePropertyFilters();
+  } = usePropertyFilters(); // No need to pass searchParams here, usePropertyFilters handles it internally
 
   console.log("PropertiesPage: Current filters from usePropertyFilters:", filters);
   console.log("PropertiesPage: Current searchQuery from usePropertyFilters:", searchQuery);
@@ -109,47 +108,6 @@ export default function PropertiesPage() {
       return prevWishlist;
     });
   };
-
-  useEffect(() => {
-    console.log("PropertiesPage: URL searchParams Effect triggered. Parsing URL:", searchParams.toString());
-
-    const initialFilters: { [key: string]: string | undefined } = {};
-    let initialSearchQuery = "";
-    let initialSortBy = "";
-    let initialSortOrder = "";
-
-    searchParams.forEach((value, key) => {
-      console.log(`PropertiesPage: Processing searchParam - Key: ${key}, Value: ${value}`);
-      if (key === "keyword") {
-        initialSearchQuery = value;
-      } else if (key === "sort_by") {
-        initialSortBy = value;
-      } else if (key === "sort_order") {
-        initialSortOrder = value;
-      } else {
-        initialFilters[key] = value;
-      }
-    });
-
-    setSearchQuery(initialSearchQuery);
-    console.log("PropertiesPage: Setting initialSearchQuery to:", initialSearchQuery);
-
-    for (const key in initialFilters) {
-      if (initialFilters[key]) {
-        console.log(`PropertiesPage: Applying initial filter from URL: ${key} = ${initialFilters[key]}`);
-        handleFilterChange(
-          key as keyof typeof filters,
-          initialFilters[key] as string
-        );
-      }
-    }
-    if (initialSortBy && initialSortOrder) {
-      console.log(`PropertiesPage: Applying initial sort from URL: sortBy=${initialSortBy}, sortOrder=${initialSortOrder}`);
-      handleSortChange(initialSortBy, initialSortOrder);
-    }
-
-    console.log("PropertiesPage: Finished initializing filters from URL.");
-  }, [searchParams, handleFilterChange, handleSortChange, setSearchQuery, filters]);
 
   const [offset, setOffset] = useState(0);
   console.log("PropertiesPage: Current offset state:", offset);
@@ -231,10 +189,10 @@ export default function PropertiesPage() {
           handleSortChange={handleSortChange}
           clearFilters={() => {
             console.log("PropertiesPage: Clear Filters button clicked. Clearing all filters and navigating.");
-            clearFilters();
-            setSearchQuery("");
+            clearFilters(); // This now calls the clearFilters from the hook which resets its internal state.
+            // The hook also implicitly sets searchQuery to ""
             setOffset(0);
-            router.push("/user/rent");
+            router.push("/user/rent"); // Navigate to clear URL params
           }}
           getSelectedLocationText={() => getSelectedLocationText() ?? ""}
           getSelectedPropertyCategoryText={() =>
@@ -302,8 +260,6 @@ export default function PropertiesPage() {
             <div className="flex flex-col justify-center items-center py-20">
               <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-500 mb-4" />
               <p className="text-gray-600 text-lg">Loading properties...</p>
-              {/* Removed direct console.log from here as it's within JSX where a ReactNode is expected */}
-              {/* console.log("PropertiesPage: Displaying loading spinner.") */}
             </div>
           ) : error ? (
             <div className="text-center py-20">
@@ -316,8 +272,7 @@ export default function PropertiesPage() {
               <button
                 onClick={() => {
                   console.log("PropertiesPage: Clear All Filters on error button clicked.");
-                  setSearchQuery("");
-                  clearFilters();
+                  clearFilters(); // Use the clearFilters from the hook
                   setOffset(0);
                   router.push("/user/rent");
                 }}
@@ -325,8 +280,6 @@ export default function PropertiesPage() {
               >
                 Clear All Filters
               </button>
-              {/* Removed direct console.log from here */}
-              {/* console.log("PropertiesPage: Displaying error message and clear filters button.") */}
             </div>
           ) : properties.length > 0 ? (
             <>
@@ -335,11 +288,9 @@ export default function PropertiesPage() {
                   const isPropertyWishlisted = userWishlist.some(
                     (item) => item.property_id === parseInt(property.id)
                   );
-                  // IMPORTANT LOGS FOR IMAGE DEBUGGING (these are okay as they are inside .map callback)
                   console.log(`PropertiesPage: Rendering PropertyCard for ID: ${property.id}`);
                   console.log(`PropertiesPage:   Property ID ${property.id} image_url: ${property.image}`);
                   console.log(`PropertiesPage:   Property ID ${property.id} initialIsWishlisted: ${isPropertyWishlisted}`);
-                  // console.log("PropertiesPage: Full property object for ID:", property.id, property);
                   return (
                     <PropertyCard
                       key={property.id}
@@ -368,8 +319,6 @@ export default function PropertiesPage() {
                   >
                     {isLoading ? "Loading..." : "Load More Properties"}
                   </button>
-                  {/* Removed direct console.log from here */}
-                  {/* console.log("PropertiesPage: Displaying Load More Properties button.") */}
                 </div>
               )}
             </>
@@ -401,8 +350,7 @@ export default function PropertiesPage() {
                 <button
                   onClick={() => {
                     console.log("PropertiesPage: Clear All Filters on no properties button clicked.");
-                    setSearchQuery("");
-                    clearFilters();
+                    clearFilters(); // Use the clearFilters from the hook
                     setOffset(0);
                     router.push("/user/rent");
                   }}
@@ -420,8 +368,6 @@ export default function PropertiesPage() {
                   Back to Home
                 </button>
               </div>
-              {/* Removed direct console.log from here */}
-              {/* console.log("PropertiesPage: Displaying 'No properties found' message.") */}
             </div>
           )}
         </div>

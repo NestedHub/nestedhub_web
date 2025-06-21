@@ -1,4 +1,4 @@
-// component/user/UserHomePage.tsx
+// component/user/page.tsx
 "use client";
 import { Home, Building, DoorOpen } from "lucide-react";
 import Header from "@/component/user/header";

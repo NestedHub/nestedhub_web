@@ -1,3 +1,6 @@
+// lib/hooks/useAuth.ts
+// Updated: June 21, 2025
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -5,14 +8,14 @@ import { useRouter } from "next/navigation";
 import {
   loginUser,
   registerUser,
-  googleLogin, // Keep this as it returns GoogleAuthUrlResponse
-  googleCallback,
+  googleLogin,
+  // Removed: googleCallback, // This is no longer imported
   verifyEmail,
   requestPasswordReset,
   confirmPasswordReset,
   revokeToken,
   getCurrentUser,
-  setTokens,
+  setTokens, // Keep this - it's crucial for storing tokens
   clearTokens,
   getAccessToken,
 } from "@/lib/utils/user-api";
@@ -25,9 +28,8 @@ import {
   PasswordResetConfirm,
   TokenRevokeRequest,
   GoogleAuthUrlResponse,
-} from "@/lib/user"; // Adjust path as needed for your types
+} from "@/lib/user";
 
-// Define the return type of the useAuth hook
 interface UseAuthResult {
   user: UserResponse | null;
   isAuthenticated: boolean;
@@ -35,21 +37,24 @@ interface UseAuthResult {
   error: string | null;
   login: (email: string, password: string) => Promise<UserResponse>;
   register: (userData: UserCreate) => Promise<UserResponse>;
-  googleLoginRedirect: () => Promise<void>; // Updated to reflect GoogleAuthUrlResponse from API call
-  handleGoogleCallback: (code: string) => Promise<UserResponse>;
+  googleLoginRedirect: () => Promise<void>;
+  handleGoogleCallback: (code: string) => Promise<UserResponse>; // Remains for type compatibility, but internal logic changes
   logout: () => Promise<void>;
   verifyEmail: (data: VerifyEmailRequest) => Promise<UserResponse>;
   requestPasswordReset: (data: PasswordResetRequest) => Promise<string>;
   confirmPasswordReset: (data: PasswordResetConfirm) => Promise<string>;
   revokeToken: (data: TokenRevokeRequest) => Promise<void>;
-  refreshUser: () => Promise<void>; // This is the function we will expose for refetching
+  refreshUser: () => Promise<void>;
+  // Explicitly exposed for GoogleCallbackContent
+  setTokens: (access_token: string, refresh_token: string) => void;
+  fetchCurrentUser: () => Promise<void>;
 }
 
 export function useAuth(): UseAuthResult {
   const router = useRouter();
   const [user, setUser] = useState<UserResponse | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Manages loading state for initial fetch and login
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // --- Core User Data Fetching and State Management ---
@@ -68,10 +73,13 @@ export function useAuth(): UseAuthResult {
       setError(null);
     } catch (err: any) {
       console.error("Failed to fetch current user:", err);
-      setError(err.message || "Failed to load user data.");
-      clearTokens(); // Clear tokens if current user fetch fails (e.g., token expired)
+      // Only clear tokens if the error genuinely means the token is bad/expired
+      if (err.message === "Unauthorized" || err.message.includes("Token expired")) {
+        clearTokens();
+      }
       setUser(null);
       setIsAuthenticated(false);
+      setError(err.message || "Failed to load user data.");
     } finally {
       setIsLoading(false);
     }
@@ -79,11 +87,10 @@ export function useAuth(): UseAuthResult {
 
   useEffect(() => {
     fetchCurrentUser();
-  }, [fetchCurrentUser]); // Dependency array includes fetchCurrentUser
+  }, [fetchCurrentUser]);
 
   // --- Authentication Actions ---
 
-  // 1. Standard Email/Password Login
   const login = useCallback(
     async (email: string, password: string): Promise<UserResponse> => {
       setIsLoading(true);
@@ -91,41 +98,18 @@ export function useAuth(): UseAuthResult {
       try {
         const tokenResponse: TokenResponse = await loginUser(email, password);
         setTokens(tokenResponse.access_token, tokenResponse.refresh_token);
-        // After setting tokens, immediately fetch the user details to update state
-        const currentUser = await getCurrentUser(); // Call getCurrentUser
+        const currentUser = await getCurrentUser();
         setUser(currentUser);
         setIsAuthenticated(true);
         setError(null);
         return currentUser;
       } catch (err: any) {
         console.error("Login failed:", err);
-        clearTokens(); // Clear tokens on login failure
+        clearTokens();
         setUser(null);
         setIsAuthenticated(false);
         setError(err.message || "Login failed. Please check your credentials.");
-        throw err; // Re-throw to allow calling component to catch
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [] // No dependencies required as it's a direct API call followed by internal state updates
-  );
-
-  // 2. User Registration
-  const register = useCallback(
-    async (userData: UserCreate): Promise<UserResponse> => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const newUser = await registerUser(userData);
-        setError(null);
-        // Registration typically doesn't immediately log in or provide tokens
-        // User will likely need to verify email or wait for admin approval
-        return newUser; // Return the user response for handling in the component
-      } catch (err: any) {
-        console.error("Registration failed:", err);
-        setError(err.message || "Registration failed. Please try again.");
-        throw err; // Re-throw for component to handle
+        throw err;
       } finally {
         setIsLoading(false);
       }
@@ -133,77 +117,70 @@ export function useAuth(): UseAuthResult {
     []
   );
 
-  // 3. Google Login (Initiates Redirect)
-  const googleLoginRedirect = useCallback(async () => {
-    setIsLoading(true); // Indicate loading as we are initiating a redirect
-    setError(null);
-    try {
-      const response: GoogleAuthUrlResponse = await googleLogin();
-      // The backend should respond with the actual Google auth URL
-      window.location.href = response.auth_url;
-      // No need to set isLoading(false) here as the page will redirect
-    } catch (err: any) {
-      console.error("Google login initiation failed:", err);
-      setError(err.message || "Google login initiation failed. Please try again.");
-      setIsLoading(false); // Set back to false if redirect fails
-      throw err;
-    }
-  }, []);
-
-  // 4. Google OAuth2 Callback Handler
-  const handleGoogleCallback = useCallback(
-    async (code: string): Promise<UserResponse> => {
+  const register = useCallback(
+    async (userData: UserCreate): Promise<UserResponse> => {
       setIsLoading(true);
       setError(null);
       try {
-        const tokenResponse: TokenResponse = await googleCallback(code);
-        setTokens(tokenResponse.access_token, tokenResponse.refresh_token);
-        // After setting tokens, fetch the user details to update state
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
-        setIsAuthenticated(true);
+        const newUser = await registerUser(userData);
         setError(null);
-        return currentUser;
+        return newUser;
       } catch (err: any) {
-        console.error("Google callback failed:", err);
-        clearTokens(); // Clear tokens if callback fails
-        setUser(null);
-        setIsAuthenticated(false);
-        setError(err.message || "Failed to log in with Google. Please try again.");
-        throw err; // Re-throw for component to handle
+        console.error("Registration failed:", err);
+        setError(err.message || "Registration failed. Please try again.");
+        throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [] // No dependencies required here
+    []
   );
 
-  // 5. Logout
+  const googleLoginRedirect = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response: GoogleAuthUrlResponse = await googleLogin();
+      window.location.href = response.auth_url;
+    } catch (err: any) {
+      console.error("Google login initiation failed:", err);
+      setError(err.message || "Google login initiation failed. Please try again.");
+      setIsLoading(false);
+      throw err;
+    }
+  }, []);
+
+  // !!! IMPORTANT: This function's logic is now a NO-OP for Google OAuth flow.
+  // It remains for type compatibility but should not be called for code exchange.
+  const handleGoogleCallback = useCallback(
+    async (code: string): Promise<UserResponse> => {
+      console.warn("handleGoogleCallback (with code) called on frontend. This function is deprecated for Google OAuth. Your backend should handle code exchange.");
+      // This indicates a misconfiguration if called. You might want to throw.
+      throw new Error("Frontend handleGoogleCallback should not process 'code'. Backend handles this.");
+    },
+    []
+  );
+
   const logout = useCallback(async () => {
     const accessToken = getAccessToken();
     if (accessToken) {
       try {
-        // Attempt to revoke the token, but don't block logout if it fails
         await revokeToken({
           token: accessToken,
-          expires_at: new Date().toISOString(), // Or handle according to your API's spec
-        } as TokenRevokeRequest);
+          expires_at: new Date().toISOString(),
+        } as TokenRevokeRequest); // Adjust expires_at according to your API
       } catch (err) {
-        console.warn(
-          "Failed to revoke token on logout (might already be invalid):",
-          err
-        );
+        console.warn("Failed to revoke token on logout (might already be invalid):", err);
       }
     }
-    clearTokens(); // Always clear client-side tokens
+    clearTokens();
     setUser(null);
     setIsAuthenticated(false);
     setError(null);
-    setIsLoading(false); // Logout is an immediate action for UI
-    router.push("/login"); // Redirect to login page after logout
+    setIsLoading(false);
+    router.push("/login");
   }, [router]);
 
-  // --- Password Management & Email Verification ---
   const verifyEmailAction = useCallback(
     async (data: VerifyEmailRequest): Promise<UserResponse> => {
       setIsLoading(true);
@@ -211,7 +188,7 @@ export function useAuth(): UseAuthResult {
       try {
         const tokenResponse: TokenResponse = await verifyEmail(data);
         setTokens(tokenResponse.access_token, tokenResponse.refresh_token);
-        const currentUser = await getCurrentUser(); // Refresh user state
+        const currentUser = await getCurrentUser();
         setUser(currentUser);
         setIsAuthenticated(true);
         setError(null);
@@ -262,10 +239,9 @@ export function useAuth(): UseAuthResult {
     []
   );
 
-  // Expose fetchCurrentUser as refreshUser for external component use
   const refreshUser = useCallback(async () => {
     setIsLoading(true);
-    await fetchCurrentUser(); // Use the internal fetchCurrentUser
+    await fetchCurrentUser();
   }, [fetchCurrentUser]);
 
 
@@ -277,18 +253,17 @@ export function useAuth(): UseAuthResult {
     login,
     register,
     googleLoginRedirect,
-    handleGoogleCallback,
+    handleGoogleCallback, // Still returned, but logic changed
     logout,
     verifyEmail: verifyEmailAction,
     requestPasswordReset: requestPasswordResetAction,
     confirmPasswordReset: confirmPasswordResetAction,
-    revokeToken: useCallback(async (data: TokenRevokeRequest) => { // Directly include revokeToken
+    revokeToken: useCallback(async (data: TokenRevokeRequest) => {
       setIsLoading(true);
       setError(null);
       try {
         await revokeToken(data);
-        // If the current token is revoked, force a full logout
-        logout();
+        logout(); // Full logout if current token is revoked
       } catch (err: any) {
         setError(err.message || 'Failed to revoke token.');
         throw err;
@@ -297,5 +272,7 @@ export function useAuth(): UseAuthResult {
       }
     }, [logout]),
     refreshUser,
+    setTokens,        // Explicitly exposed
+    fetchCurrentUser, // Explicitly exposed
   };
 }

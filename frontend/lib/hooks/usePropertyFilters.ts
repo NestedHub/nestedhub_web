@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react"
+// lib/hooks/usePropertyFilters.ts
+import { useState, useEffect, useCallback } from "react" // Add useCallback
+import { useSearchParams } from "next/navigation" // Import useSearchParams
 
 export interface Filters {
   city_id: string
@@ -27,26 +29,106 @@ const SORT_OPTIONS = [
 ]
 
 export function usePropertyFilters() {
+  const searchParams = useSearchParams() // Get searchParams inside the hook
+
   const [cities, setCities] = useState<{ id: number; name: string }[]>([])
   const [districts, setDistricts] = useState<{ id: number; name: string }[]>([])
   const [communes, setCommunes] = useState<{ id: number; name: string }[]>([])
   const [propertyCategories, setPropertyCategories] = useState<{ id: number; name: string }[]>([])
   const [sortOptions] = useState(SORT_OPTIONS)
 
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filters, setFilters] = useState<Filters>({
-    city_id: "",
-    district_id: "",
-    commune_id: "",
-    category_id: "",
-    sort_by: "listed_at",
-    sort_order: "desc",
+  // Initialize searchQuery and filters from URL on mount
+  // This state initializer runs only once on initial render
+  const [searchQuery, setSearchQuery] = useState(() => {
+    return searchParams.get("keyword") || ""
   })
+
+  const [filters, setFilters] = useState<Filters>(() => {
+    const initialFiltersFromUrl: Partial<Filters> = {}
+    searchParams.forEach((value, key) => {
+      // Ensure the key exists in our Filters type
+      if (key in initialFiltersFromUrl || ['city_id', 'district_id', 'commune_id', 'category_id', 'sort_by', 'sort_order'].includes(key)) {
+          (initialFiltersFromUrl as any)[key] = value // Cast to any to assign string to specific keys
+      }
+    })
+
+    return {
+      city_id: initialFiltersFromUrl.city_id || "",
+      district_id: initialFiltersFromUrl.district_id || "",
+      commune_id: initialFiltersFromUrl.commune_id || "",
+      category_id: initialFiltersFromUrl.category_id || "",
+      sort_by: initialFiltersFromUrl.sort_by || "listed_at", // Default if not in URL
+      sort_order: initialFiltersFromUrl.sort_order || "desc", // Default if not in URL
+    }
+  })
+
   const [dropdownStates, setDropdownStates] = useState({
     location: false,
     propertyCategory: false,
     priceSort: false,
   })
+
+  // Effect to re-sync state with URL if searchParams change (e.g., browser back/forward, external link)
+  // This is crucial to keep the internal state in sync with the URL after navigation not originating from this page's search.
+  useEffect(() => {
+    console.log("usePropertyFilters: URL searchParams Effect triggered. Parsing URL:", searchParams.toString());
+
+    // Update searchQuery if 'keyword' param changes in URL
+    const keywordFromUrl = searchParams.get("keyword") || "";
+    if (searchQuery !== keywordFromUrl) {
+        console.log(`usePropertyFilters: Syncing searchQuery from URL: '${searchQuery}' -> '${keywordFromUrl}'`);
+        setSearchQuery(keywordFromUrl);
+    }
+
+    // Update filters if any filter params change in URL
+    setFilters(prevFilters => {
+        let updatedFilters = { ...prevFilters };
+        let changed = false;
+
+        const newCityId = searchParams.get("city_id") || "";
+        if (updatedFilters.city_id !== newCityId) {
+            updatedFilters.city_id = newCityId;
+            changed = true;
+        }
+
+        const newDistrictId = searchParams.get("district_id") || "";
+        if (updatedFilters.district_id !== newDistrictId) {
+            updatedFilters.district_id = newDistrictId;
+            changed = true;
+        }
+
+        const newCommuneId = searchParams.get("commune_id") || "";
+        if (updatedFilters.commune_id !== newCommuneId) {
+            updatedFilters.commune_id = newCommuneId;
+            changed = true;
+        }
+
+        const newCategoryId = searchParams.get("category_id") || "";
+        if (updatedFilters.category_id !== newCategoryId) {
+            updatedFilters.category_id = newCategoryId;
+            changed = true;
+        }
+
+        const newSortBy = searchParams.get("sort_by") || "listed_at";
+        if (updatedFilters.sort_by !== newSortBy) {
+            updatedFilters.sort_by = newSortBy;
+            changed = true;
+        }
+
+        const newSortOrder = searchParams.get("sort_order") || "desc";
+        if (updatedFilters.sort_order !== newSortOrder) {
+            updatedFilters.sort_order = newSortOrder;
+            changed = true;
+        }
+
+        if (changed) {
+            console.log("usePropertyFilters: Syncing filters from URL:", updatedFilters);
+            return updatedFilters;
+        }
+        return prevFilters; // No change, return previous state to prevent unnecessary re-renders
+    });
+  }, [searchParams]); // This effect depends only on searchParams
+
 
   // Fetch cities and property categories on mount
   useEffect(() => {
@@ -57,11 +139,11 @@ export function usePropertyFilters() {
           id: item.city_id,
           name: item.city_name,
         }))
-        console.log("Fetched cities:", formatted)
+        console.log("usePropertyFilters: Fetched cities:", formatted)
         setCities(formatted)
       })
       .catch((err) => {
-        console.error("Error fetching cities", err)
+        console.error("usePropertyFilters: Error fetching cities", err)
         setCities([])
       })
 
@@ -72,23 +154,26 @@ export function usePropertyFilters() {
           id: item.category_id,
           name: item.category_name,
         }))
-        console.log("Fetched property categories:", formatted)
+        console.log("usePropertyFilters: Fetched property categories:", formatted)
         setPropertyCategories(formatted)
       })
       .catch((err) => {
-        console.error("Error fetching property categories", err)
+        console.error("usePropertyFilters: Error fetching property categories", err)
         setPropertyCategories([])
       })
-  }, [])
+  }, []) // Empty dependency array means this runs once on mount
 
   // Fetch districts when city_id changes
   useEffect(() => {
-    console.log("City ID changed:", filters.city_id)
+    console.log("usePropertyFilters: City ID changed:", filters.city_id)
 
     if (!filters.city_id) {
       setDistricts([])
       setCommunes([])
-      setFilters((prev) => ({ ...prev, district_id: "", commune_id: "" }))
+      // Do NOT reset filters here directly as it can cause a loop if it's already set by URL.
+      // The main useEffect above will handle URL-based changes.
+      // This is for cases where city_id is cleared *manually* by a user action in a dropdown.
+      setFilters((prev) => ({ ...prev, district_id: "", commune_id: "" }));
       return
     }
 
@@ -99,25 +184,29 @@ export function usePropertyFilters() {
           id: item.district_id,
           name: item.district_name,
         }))
-        console.log("Fetched districts for city", filters.city_id, ":", formatted)
+        console.log("usePropertyFilters: Fetched districts for city", filters.city_id, ":", formatted)
         setDistricts(formatted)
       })
       .catch((err) => {
-        console.error("Error fetching districts", err)
+        console.error("usePropertyFilters: Error fetching districts", err)
         setDistricts([])
       })
 
+    // This ensures consistency when city is changed: clear dependent filters
+    // This is safe because it only runs when `filters.city_id` (a dependency) changes.
     setFilters((prev) => ({ ...prev, district_id: "", commune_id: "" }))
     setCommunes([])
-  }, [filters.city_id])
+  }, [filters.city_id]) // Depend on filters.city_id
 
   // Fetch communes when district_id changes
   useEffect(() => {
-    console.log("District ID changed:", filters.district_id)
+    console.log("usePropertyFilters: District ID changed:", filters.district_id)
 
     if (!filters.district_id) {
       setCommunes([])
-      setFilters((prev) => ({ ...prev, commune_id: "" }))
+      // Do NOT reset filters here directly as it can cause a loop if it's already set by URL.
+      // This is for cases where district_id is cleared *manually* by a user action in a dropdown.
+      setFilters((prev) => ({ ...prev, commune_id: "" }));
       return
     }
 
@@ -128,16 +217,18 @@ export function usePropertyFilters() {
           id: item.commune_id,
           name: item.commune_name,
         }))
-        console.log("Fetched communes for district", filters.district_id, ":", formatted)
+        console.log("usePropertyFilters: Fetched communes for district", filters.district_id, ":", formatted)
         setCommunes(formatted)
       })
       .catch((err) => {
-        console.error("Error fetching communes", err)
+        console.error("usePropertyFilters: Error fetching communes", err)
         setCommunes([])
       })
 
+    // This ensures consistency when district is changed: clear dependent filters
+    // This is safe because it only runs when `filters.district_id` (a dependency) changes.
     setFilters((prev) => ({ ...prev, commune_id: "" }))
-  }, [filters.district_id])
+  }, [filters.district_id]) // Depend on filters.district_id
 
   // Click outside handler
   useEffect(() => {
@@ -155,18 +246,19 @@ export function usePropertyFilters() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  const handleFilterChange = (key: keyof Filters, value: string) => {
-    console.log("Filter change:", key, "=>", value)
+  // Memoize these functions with useCallback for performance and stable dependencies
+  const handleFilterChange = useCallback((key: keyof Filters, value: string) => {
+    console.log("usePropertyFilters: Filter change:", key, "=>", value)
     setFilters((prev) => ({ ...prev, [key]: value }))
-  }
+  }, []) // Empty dependency array as it doesn't depend on outside values
 
-  const handleSortChange = (sortBy: string, sortOrder: string) => {
-    console.log("Sort change: ", sortBy, sortOrder)
+  const handleSortChange = useCallback((sortBy: string, sortOrder: string) => {
+    console.log("usePropertyFilters: Sort change: ", sortBy, sortOrder)
     setFilters((prev) => ({ ...prev, sort_by: sortBy, sort_order: sortOrder }))
-  }
+  }, []) // Empty dependency array
 
-  const clearFilters = () => {
-    console.log("Clearing filters")
+  const clearFilters = useCallback(() => {
+    console.log("usePropertyFilters: Clearing filters")
     setFilters({
       city_id: "",
       district_id: "",
@@ -175,18 +267,18 @@ export function usePropertyFilters() {
       sort_by: "listed_at",
       sort_order: "desc",
     })
-    setSearchQuery("")
-  }
+    setSearchQuery("") // Also clear the search query
+  }, []) // Empty dependency array
 
-  const toggleDropdown = (dropdown: keyof typeof dropdownStates) => {
-    console.log("Toggling dropdown:", dropdown)
+  const toggleDropdown = useCallback((dropdown: keyof typeof dropdownStates) => {
+    console.log("usePropertyFilters: Toggling dropdown:", dropdown)
     setDropdownStates((prev) => ({
       ...prev,
       [dropdown]: !prev[dropdown],
     }))
-  }
+  }, []) // Empty dependency array
 
-  const getSelectedLocationText = () => {
+  const getSelectedLocationText = useCallback(() => {
     if (filters.commune_id) {
       const commune = communes.find((c) => c.id.toString() === filters.commune_id)
       const district = districts.find((d) => d.id.toString() === filters.district_id)
@@ -203,27 +295,28 @@ export function usePropertyFilters() {
       return city?.name
     }
     return "All Locations"
-  }
+  }, [filters.commune_id, filters.district_id, filters.city_id, communes, districts, cities]) // Dependencies for useCallback
 
-  const getSelectedPropertyCategoryText = () => {
+  const getSelectedPropertyCategoryText = useCallback(() => {
     if (filters.category_id) {
       const category = propertyCategories.find((c) => c.id.toString() === filters.category_id)
       return category?.name
     }
     return "All Categories"
-  }
+  }, [filters.category_id, propertyCategories]) // Dependencies for useCallback
 
-  const getSelectedSortText = () => {
+  const getSelectedSortText = useCallback(() => {
     const option = sortOptions.find(
       (opt) => opt.value === filters.sort_by && opt.order === filters.sort_order
     )
     return option?.label || "Latest Listed"
-  }
+  }, [filters.sort_by, filters.sort_order, sortOptions]) // Dependencies for useCallback
+
 
   return {
     filters,
     searchQuery,
-    setSearchQuery,
+    setSearchQuery, // This is the state setter for the input
     dropdownStates,
     toggleDropdown,
     handleFilterChange,

@@ -1,3 +1,6 @@
+// lib/context/AuthContext.tsx
+// Updated: June 21, 2025
+
 "use client";
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -12,13 +15,17 @@ interface AuthContextType {
   login: ReturnType<typeof useAuth>['login'];
   register: ReturnType<typeof useAuth>['register'];
   googleLoginRedirect: ReturnType<typeof useAuth>['googleLoginRedirect'];
-  handleGoogleCallback: ReturnType<typeof useAuth>['handleGoogleCallback'];
+  // REMOVED: handleGoogleCallback: ReturnType<typeof useAuth>['handleGoogleCallback'];
   logout: ReturnType<typeof useAuth>['logout'];
   verifyEmail: ReturnType<typeof useAuth>['verifyEmail'];
   requestPasswordReset: ReturnType<typeof useAuth>['requestPasswordReset'];
   confirmPasswordReset: ReturnType<typeof useAuth>['confirmPasswordReset'];
-  revokeToken: ReturnType<typeof useAuth>['revokeToken']; // Added revokeToken
-  refreshUser: ReturnType<typeof useAuth>['refreshUser']; // Corrected to refreshUser
+  revokeToken: ReturnType<typeof useAuth>['revokeToken'];
+  refreshUser: ReturnType<typeof useAuth>['refreshUser'];
+
+  // ADDED: New functions needed for the GoogleCallbackContent
+  setTokens: ReturnType<typeof useAuth>['setTokens'];
+  fetchCurrentUser: ReturnType<typeof useAuth>['fetchCurrentUser'];
 }
 
 // Create the context

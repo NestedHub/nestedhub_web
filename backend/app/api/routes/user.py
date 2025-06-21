@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import RedirectResponse
 from pydantic import EmailStr
 from sqlmodel import Session, select, func
 from typing import Optional, List
@@ -92,64 +93,97 @@ async def google_login():
     return {"auth_url": auth_url}
 
 
-@router.get("/google/callback", response_model=TokenResponse)
+@router.get("/google/callback") # Remove response_model=TokenResponse from here
 async def google_callback(
     code: str,
     session: Session = Depends(get_db_session)
 ):
     """
     Handle Google OAuth2 callback, exchange code for tokens, and authenticate user.
+    Then redirects to the frontend with application tokens.
     """
-    async with httpx.AsyncClient() as client:
-        # Exchange code for access token
-        token_response = await client.post(
-            GOOGLE_TOKEN_URL,
-            data={
-                "code": code,
-                "client_id": GOOGLE_CLIENT_ID,
-                "client_secret": GOOGLE_CLIENT_SECRET,
-                "redirect_uri": GOOGLE_REDIRECT_URI,
-                "grant_type": "authorization_code"
+    frontend_callback_url = "http://localhost:3000/auth/google/callback" # THIS MUST MATCH THE NEW FRONTEND PAGE URL
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Exchange code for access token
+            token_response = await client.post(
+                GOOGLE_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": GOOGLE_REDIRECT_URI, # This is still your backend's URI for Google
+                    "grant_type": "authorization_code"
+                }
+            )
+            if token_response.status_code != 200:
+                print(f"Failed to exchange code for token: {token_response.text}")
+                raise HTTPException(
+                    status_code=400, detail="Failed to exchange code for token")
+
+            token_data = token_response.json()
+            access_token = token_data.get("access_token")
+            if not access_token:
+                print(f"No access token received from Google: {token_data}")
+                raise HTTPException(
+                    status_code=400, detail="No access token received from Google")
+
+            # Fetch user info
+            user_response = await client.get(
+                GOOGLE_USERINFO_URL,
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            if user_response.status_code != 200:
+                print(f"Failed to fetch user info from Google: {user_response.text}")
+                raise HTTPException(
+                    status_code=400, detail="Failed to fetch user info from Google")
+
+            user_info = user_response.json()
+            email = user_info.get("email")
+            name = user_info.get("name", "Google User")
+            google_id = user_info.get("sub")  # Google's unique user ID
+            picture = user_info.get("picture")
+
+            if not email or not google_id:
+                print(f"Invalid user info from Google: {user_info}")
+                raise HTTPException(
+                    status_code=400, detail="Invalid user info from Google")
+
+            # Authenticate or create user in your database and get your app's JWTs
+            tokens_for_app = authenticate_google_user( # This should return a dict compatible with TokenResponse
+                session=session,
+                email=email,
+                google_id=google_id,
+                name=name,
+                profile_picture_url=picture
+            )
+
+            # --- CRITICAL CHANGE HERE: REDIRECT TO FRONTEND WITH APP TOKENS ---
+            params_for_frontend = {
+                "access_token": tokens_for_app["access_token"],
+                "refresh_token": tokens_for_app["refresh_token"],
+                "token_type": tokens_for_app["token_type"]
             }
+            redirect_url = f"{frontend_callback_url}?{urllib.parse.urlencode(params_for_frontend)}"
+
+            return RedirectResponse(url=redirect_url, status_code=302)
+
+    except HTTPException as http_exc:
+        # If an HTTPException occurred, redirect to login with the error
+        error_message = http_exc.detail
+        return RedirectResponse(
+            url=f"{frontend_callback_url.rsplit('/', 1)[0]}/login?error={urllib.parse.urlencode({'message': error_message})}", # Redirect to /login
+            status_code=302
         )
-        if token_response.status_code != 200:
-            raise HTTPException(
-                status_code=400, detail="Failed to exchange code for token")
-
-        token_data = token_response.json()
-        access_token = token_data.get("access_token")
-        if not access_token:
-            raise HTTPException(
-                status_code=400, detail="No access token received")
-
-        # Fetch user info
-        user_response = await client.get(
-            GOOGLE_USERINFO_URL,
-            headers={"Authorization": f"Bearer {access_token}"}
+    except Exception as e:
+        # Catch any other unexpected errors
+        print(f"Unexpected error during Google callback in backend: {e}")
+        error_message = "An unexpected error occurred during Google login."
+        return RedirectResponse(
+            url=f"{frontend_callback_url.rsplit('/', 1)[0]}/login?error={urllib.parse.urlencode({'message': error_message})}", # Redirect to /login
+            status_code=302
         )
-        if user_response.status_code != 200:
-            raise HTTPException(
-                status_code=400, detail="Failed to fetch user info")
-
-        user_info = user_response.json()
-        email = user_info.get("email")
-        name = user_info.get("name", "Google User")
-        google_id = user_info.get("sub")  # Google's unique user ID
-        picture = user_info.get("picture")
-
-        if not email or not google_id:
-            raise HTTPException(
-                status_code=400, detail="Invalid user info from Google")
-
-        # Authenticate or create user
-        tokens = authenticate_google_user(
-            session=session,
-            email=email,
-            google_id=google_id,
-            name=name,
-            profile_picture_url=picture
-        )
-        return TokenResponse(**tokens)
 
 
 @router.post("/register", response_model=UserResponse)

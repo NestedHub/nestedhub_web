@@ -1,3 +1,6 @@
+// app/auth/login/page.tsx
+// No changes needed for Google OAuth functionality in this version.
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,6 +12,7 @@ export default function LoginPage() {
   const router = useRouter();
   const {
     login,
+    googleLoginRedirect,
     isAuthenticated,
     isLoading: authLoading,
     user,
@@ -25,10 +29,10 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated && user) {
       switch (user.role) {
-        case "customer": // Changed from 'user' to 'customer'
+        case "customer":
           router.push("/user");
           break;
-        case "property_owner": // Changed from 'propertyowner' to 'property_owner'
+        case "property_owner":
           router.push("/propertyowner/dashboard");
           break;
         case "admin":
@@ -55,7 +59,6 @@ export default function LoginPage() {
 
     try {
       await login(formData.email, formData.password);
-      // Redirection is handled by the useEffect above
     } catch (err) {
       console.error("Login error:", err);
       if (err instanceof Error) {
@@ -63,8 +66,23 @@ export default function LoginPage() {
       } else {
         setError("An unexpected error occurred");
       }
-      console.error("Login error:", err);
     } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setLocalLoading(true);
+    try {
+      await googleLoginRedirect();
+    } catch (err) {
+      console.error("Google sign-in initiation failed:", err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to initiate Google sign-in.");
+      }
       setLocalLoading(false);
     }
   };
@@ -161,6 +179,62 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
+
+        {/* Separator */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-white px-2 text-gray-500">Or continue with</span>
+          </div>
+        </div>
+
+        {/* Google Sign-In Button */}
+        <div>
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className={`group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg shadow-sm transition-all duration-200
+              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 ${
+                isLoading
+                  ? "bg-gray-100 cursor-not-allowed text-gray-500"
+                  : "bg-white hover:bg-gray-50 text-gray-700"
+              }`}
+          >
+            {isLoading ? (
+              <>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-700"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Loading...
+              </>
+            ) : (
+              <>
+                <img src="/google-icon.svg" alt="Google logo" className="h-5 w-5 mr-2" />
+                Sign in with Google
+              </>
+            )}
+          </button>
+        </div>
 
         <div className="mt-4 text-center">
           <Link href="/user" className="text-green-800 hover:text-green-700">
