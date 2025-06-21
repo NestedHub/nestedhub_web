@@ -1,522 +1,317 @@
 "use client";
 
-import type React from "react";
-
-import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { Loader2, UploadCloud, CheckCircle, ArrowLeft, ArrowRight, Save } from "lucide-react";
+import { toast } from "react-hot-toast";
 import Sidebar from "@/component/dashoboadpropertyowner/sidebar";
+import { propertyApi } from '@/lib/api/property';
+import { propertyOwnerApi } from '@/lib/api/propertyOwner';
+import { Property, PropertyFeature, PropertyCategory } from "@/lib/types";
 
-// Mock property data
-const mockPropertyDetail = {
-  id: "01",
-  title: "Luxury Apartment in Downtown",
-  description: "Description",
-  type: "Apartment",
-  bedrooms: 3,
-  bathrooms: 2,
-  availableFrom: "02 Jan 2025",
-  location: "Location",
-  facilities: {
-    airConditioning: "no",
-    guard: "yes",
-    parking: "no",
-    internet: "yes",
-  },
-  cost: {
-    rentPrice: "$500/month",
-    electric: "$30",
-    water: "$20",
-    other: "$50",
-  },
-  forRent: {
-    maleStudent: "no",
-    femaleStudent: "yes",
-    manJob: "no",
-    womanJob: "no",
-  },
-  owner: {
-    name: "Name Here",
-    phone: "0987777",
-    email: "email@example.com",
-    telegram: "@telegram-link",
-  },
+// --- Helper to fetch dynamic data ---
+const fetchFilters = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${url}`);
+  return res.json();
 };
 
+const steps = ["General", "Location", "Pricing & Features", "Images", "Review"];
+
+// --- Form Data Interfaces ---
+interface EditFormData {
+    title: string;
+    description: string;
+    bedrooms: number;
+    bathrooms: number;
+    land_area: number;
+    floor_area: number;
+    status: string;
+    category_id?: number;
+    feature_ids: number[];
+    rent_price: number;
+    available_from: string;
+    street_number: string;
+    latitude: number;
+    longitude: number;
+    city_id?: number;
+    district_id?: number;
+    commune_id?: number;
+    media: { media_url: string; media_type: string }[];
+}
+
 export default function EditPropertyPage() {
-  const params = useParams();
   const router = useRouter();
+  const params = useParams();
   const propertyId = params.id as string;
 
-  // In a real app, you would fetch the property data based on the ID
-  const [property, setProperty] = useState(mockPropertyDetail);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState<EditFormData | null>(null);
+  
+  // --- Dynamic Data State ---
+  const [categories, setCategories] = useState<PropertyCategory[]>([]);
+  const [features, setFeatures] = useState<PropertyFeature[]>([]);
+  const [cities, setCities] = useState<{ city_id: number; city_name: string }[]>([]);
+  const [districts, setDistricts] = useState<{ district_id: number; district_name: string }[]>([]);
+  const [communes, setCommunes] = useState<{ commune_id: number; commune_name: string }[]>([]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, you would call an API to update the property
-    alert("Property updated successfully!");
-    router.push(`/propertyowner/property/${propertyId}`);
+  // --- Control State ---
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // --- Fetch all necessary data ---
+  useEffect(() => {
+    if (!propertyId) return;
+
+    const loadData = async () => {
+      try {
+        const [propertyData, categoriesData, featuresData, citiesData] = await Promise.all([
+          propertyApi.getProperty(propertyId),
+          fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/categories`),
+          fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/features`),
+          fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/cities`),
+        ]);
+
+        // Populate form with existing data
+        setFormData({
+            title: propertyData.title,
+            description: propertyData.description,
+            bedrooms: propertyData.bedrooms,
+            bathrooms: propertyData.bathrooms,
+            land_area: propertyData.land_area,
+            floor_area: propertyData.floor_area,
+            status: propertyData.status,
+            category_id: propertyData.category.category_id,
+            feature_ids: propertyData.features.map(f => f.feature_id),
+            rent_price: propertyData.pricing.rent_price,
+            available_from: new Date(propertyData.pricing.available_from).toISOString().split('T')[0],
+            street_number: propertyData.location.street_number,
+            latitude: propertyData.location.latitude,
+            longitude: propertyData.location.longitude,
+            city_id: propertyData.location.city.city_id,
+            district_id: propertyData.location.district.district_id,
+            commune_id: propertyData.location.commune.commune_id,
+            media: propertyData.media,
+        });
+        
+        // Populate filter dropdowns
+        setCategories(categoriesData);
+        setFeatures(featuresData);
+        setCities(citiesData);
+
+      } catch (error) {
+        toast.error("Failed to load property data. Redirecting...");
+        router.push("/propertyowner/property");
+      }
+    };
+    
+    loadData();
+  }, [propertyId, router]);
+
+  // --- Fetch chained location data based on formData ---
+  useEffect(() => {
+    if (!formData?.city_id) return;
+    const loadDistricts = async () => {
+      const districtsData = await fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/districts?city_id=${formData.city_id}`);
+      setDistricts(districtsData);
+    };
+    loadDistricts();
+  }, [formData?.city_id]);
+
+  useEffect(() => {
+    if (!formData?.district_id) return;
+    const loadCommunes = async () => {
+      const communesData = await fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/communes?district_id=${formData.district_id}`);
+      setCommunes(communesData);
+      setIsLoading(false); // Stop loading once all data is present
+    };
+    loadCommunes();
+  }, [formData?.district_id]);
+    
+  // --- Handlers ---
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    if (formData) {
+        setFormData(prev => ({ ...prev!, [name]: name.includes('_id') || ['bedrooms', 'bathrooms', 'land_area', 'floor_area', 'rent_price', 'latitude', 'longitude'].includes(name) ? Number(value) : value }));
+    }
   };
 
-  const handleBack = () => {
-    router.back();
+  const handleFeatureToggle = (id: number) => {
+    if (formData) {
+        setFormData(prev => ({
+            ...prev!,
+            feature_ids: prev!.feature_ids.includes(id) ? prev!.feature_ids.filter(fid => fid !== id) : [...prev!.feature_ids, id]
+        }));
+    }
   };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !formData) return;
+    
+    setIsUploading(true);
+    toast.loading("Uploading images...");
+    try {
+      const uploadPromises = Array.from(files).map(file => propertyOwnerApi.uploadImageToCloudinary(file));
+      const results = await Promise.all(uploadPromises);
+      const newMedia = results.map(result => ({ media_url: result.secure_url, media_type: 'image' }));
+      setFormData(prev => ({ ...prev!, media: [...prev!.media, ...newMedia] }));
+      toast.dismiss();
+      toast.success("Images uploaded successfully!");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Image upload failed.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFinalSubmit = async () => {
+    if (!formData || !formData.category_id || !formData.city_id || !formData.district_id || !formData.commune_id) {
+        toast.error("Please ensure all location and category fields are selected.");
+        return;
+    }
+    
+    setIsSubmitting(true);
+    toast.loading("Updating property...");
+    try {
+      const { city_id, district_id, commune_id, street_number, latitude, longitude, ...restOfData } = formData;
+      const payload = {
+          ...restOfData,
+          location: { city_id, district_id, commune_id, street_number, latitude, longitude },
+          pricing: { rent_price: formData.rent_price, available_from: formData.available_from || null }
+      };
+      
+      await propertyApi.updateProperty(propertyId, payload);
+      toast.dismiss();
+      toast.success("Property updated successfully!");
+      router.push(`/propertyowner/property/${propertyId}`);
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(error.message || "Failed to update property.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderStepContent = () => {
+    if (!formData) return null;
+    switch (currentStep) {
+        case 0: // General
+            return (
+                <div className="space-y-4">
+                    <h2 className="text-xl font-semibold">General Information</h2>
+                    <div><label>Title</label><input name="title" value={formData.title} onChange={handleChange} className="w-full p-2 border rounded" required /></div>
+                    <div><label>Description</label><textarea name="description" value={formData.description} onChange={handleChange} className="w-full p-2 border rounded" rows={4}></textarea></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div><label>Bedrooms</label><input name="bedrooms" type="number" value={formData.bedrooms} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Bathrooms</label><input name="bathrooms" type="number" value={formData.bathrooms} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Floor Area (m²)</label><input name="floor_area" type="number" value={formData.floor_area} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Land Area (m²)</label><input name="land_area" type="number" value={formData.land_area} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                </div>
+                </div>
+            );
+        case 1: // Location
+            return (
+                <div className="space-y-4">
+                     <h2 className="text-xl font-semibold">Location</h2>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label>City/Province</label><select name="city_id" value={formData.city_id} onChange={handleChange} className="w-full p-2 border rounded">{cities.map(c => <option key={c.city_id} value={c.city_id}>{c.city_name}</option>)}</select></div>
+                        <div><label>District/Khan</label><select name="district_id" value={formData.district_id} onChange={handleChange} className="w-full p-2 border rounded">{districts.map(d => <option key={d.district_id} value={d.district_id}>{d.district_name}</option>)}</select></div>
+                        <div><label>Commune/Sangkat</label><select name="commune_id" value={formData.commune_id} onChange={handleChange} className="w-full p-2 border rounded">{communes.map(c => <option key={c.commune_id} value={c.commune_id}>{c.commune_name}</option>)}</select></div>
+                        <div><label>Street Number</label><input name="street_number" value={formData.street_number} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Latitude</label><input name="latitude" type="number" step="any" value={formData.latitude} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Longitude</label><input name="longitude" type="number" step="any" value={formData.longitude} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+          </div>
+                </div>
+            );
+        case 2: // Pricing & Features
+             return (
+                <div className="space-y-6">
+                <div>
+                        <h2 className="text-xl font-semibold mb-4">Pricing & Availability</h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label>Rent Price (USD)</label><input name="rent_price" type="number" value={formData.rent_price} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                            <div><label>Available From</label><input name="available_from" type="date" value={formData.available_from} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                </div>
+              </div>
+                    <div>
+                        <h2 className="text-xl font-semibold mb-4">Features & Category</h2>
+                        <div><label>Category</label><select name="category_id" value={formData.category_id} onChange={handleChange} className="w-full p-2 border rounded mb-4">{categories.map(c => <option key={c.category_id} value={c.category_id}>{c.category_name}</option>)}</select></div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {features.map(feature => (
+                                <label key={feature.feature_id} className="flex items-center space-x-2"><input type="checkbox" checked={formData.feature_ids.includes(feature.feature_id)} onChange={() => handleFeatureToggle(feature.feature_id)} /><span>{feature.feature_name}</span></label>
+                            ))}
+            </div>
+          </div>
+                </div>
+            );
+        case 3: // Images
+            return (
+                <div>
+                    <h2 className="text-xl font-semibold mb-4">Images</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        {formData.media.map(m => <img key={m.media_url} src={m.media_url} alt="property" className="w-full h-32 object-cover rounded"/>)}
+                </div>
+                    <label htmlFor="image-upload" className="flex justify-center items-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                        {isUploading ? <Loader2 className="h-8 w-8 animate-spin"/> : <UploadCloud className="h-8 w-8 text-gray-400"/>}
+                    </label>
+                    <input id="image-upload" type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
+                </div>
+            );
+        case 4: // Review
+            return (
+                <div>
+                    <h2 className="text-xl font-semibold mb-4">Review & Submit</h2>
+                    <div className="space-y-2">
+                        <p><strong>Title:</strong> {formData.title}</p>
+                        <p><strong>Category:</strong> {categories.find(c => c.category_id === formData.category_id)?.category_name}</p>
+                        <p><strong>Location:</strong> {cities.find(c=>c.city_id === formData.city_id)?.city_name}, {districts.find(d=>d.district_id === formData.district_id)?.district_name}, {communes.find(c=>c.commune_id === formData.commune_id)?.commune_name}</p>
+                        <p><strong>Rent:</strong> ${formData.rent_price}/month</p>
+                        <p><strong>Images:</strong> {formData.media.length}</p>
+                        <p><strong>Features:</strong> {formData.feature_ids.length}</p>
+          </div>
+                </div>
+            );
+        default: return null;
+    }
+  };
+
+  if (isLoading || !formData) {
+    return <Sidebar><div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /><p className="ml-2">Loading form...</p></div></Sidebar>;
+  }
 
   return (
     <Sidebar>
-      <div className="p-6">
+      <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Property Listing</h1>
-        </div>
-
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold">Edit Rent Peroperty</h2>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="bg-gray-50 p-4 rounded-md mb-6">
-            <div className="grid grid-cols-2">
-              <div className="font-medium">Title</div>
-              <div>Detail</div>
+            <div className="flex items-center justify-between mb-4">
+                <h1 className="text-2xl font-bold">Edit Property</h1>
+                <span className="text-sm font-medium text-gray-500">Step {currentStep + 1} of {steps.length}</span>
+            </div>
+            <div className="flex space-x-2">
+                {steps.map((step, index) => (
+                    <div key={step} className={`flex-1 h-2 rounded-full ${index <= currentStep ? 'bg-green-600' : 'bg-gray-200'}`}></div>
+                ))}
             </div>
           </div>
 
-          <div className="mb-6">
-            <div className="font-medium mb-2">Thumbnail</div>
-            <div className="bg-gray-200 w-64 h-48 rounded-md flex items-center justify-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-16 w-16 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
+        <div className="p-8 border rounded-lg bg-white min-h-[400px]">
+            {renderStepContent()}
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <div>
-              <div className="font-medium mb-2">Title</div>
-              <input
-                type="text"
-                value={property.title}
-                onChange={(e) =>
-                  setProperty({ ...property, title: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            <div>
-              <div className="font-medium mb-2">Description</div>
-              <input
-                type="text"
-                value={property.description}
-                onChange={(e) =>
-                  setProperty({ ...property, description: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <div className="font-medium mb-2">Home Detail</div>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <div className="font-medium mb-2">Type</div>
-                  <input
-                    type="text"
-                    value={property.type}
-                    onChange={(e) =>
-                      setProperty({ ...property, type: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Bedroom</div>
-                  <input
-                    type="number"
-                    value={property.bedrooms}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        bedrooms: Number.parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Bathroom</div>
-                  <input
-                    type="number"
-                    value={property.bathrooms}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        bathrooms: Number.parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <div className="font-medium mb-2">Rent Information</div>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="font-medium mb-2">Available From</div>
-                  <input
-                    type="text"
-                    value={property.availableFrom}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        availableFrom: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Location</div>
-                  <input
-                    type="text"
-                    value={property.location}
-                    onChange={(e) =>
-                      setProperty({ ...property, location: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <div className="font-medium mb-2">Facilities</div>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <div className="grid grid-cols-4 gap-4">
-                <div>
-                  <div className="font-medium mb-2">Air-Conditioning</div>
-                  <select
-                    value={property.facilities.airConditioning}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        facilities: {
-                          ...property.facilities,
-                          airConditioning: e.target.value,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Guard</div>
-                  <select
-                    value={property.facilities.guard}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        facilities: {
-                          ...property.facilities,
-                          guard: e.target.value,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Parking</div>
-                  <select
-                    value={property.facilities.parking}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        facilities: {
-                          ...property.facilities,
-                          parking: e.target.value,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Internet</div>
-                  <select
-                    value={property.facilities.internet}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        facilities: {
-                          ...property.facilities,
-                          internet: e.target.value,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <div className="font-medium mb-2">Cost</div>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <div className="grid grid-cols-4 gap-4">
-                <div>
-                  <div className="font-medium mb-2">Rent Price</div>
-                  <input
-                    type="text"
-                    value={property.cost.rentPrice}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        cost: { ...property.cost, rentPrice: e.target.value },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Electric</div>
-                  <input
-                    type="text"
-                    value={property.cost.electric}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        cost: { ...property.cost, electric: e.target.value },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Water</div>
-                  <input
-                    type="text"
-                    value={property.cost.water}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        cost: { ...property.cost, water: e.target.value },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Other</div>
-                  <input
-                    type="text"
-                    value={property.cost.other}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        cost: { ...property.cost, other: e.target.value },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <div className="font-medium mb-2">For Rent</div>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <div className="grid grid-cols-4 gap-4">
-                <div>
-                  <div className="font-medium mb-2">Male Student</div>
-                  <select
-                    value={property.forRent.maleStudent}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        forRent: {
-                          ...property.forRent,
-                          maleStudent: e.target.value,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Female Student</div>
-                  <select
-                    value={property.forRent.femaleStudent}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        forRent: {
-                          ...property.forRent,
-                          femaleStudent: e.target.value,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Man Job</div>
-                  <select
-                    value={property.forRent.manJob}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        forRent: {
-                          ...property.forRent,
-                          manJob: e.target.value,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Woman Job</div>
-                  <select
-                    value={property.forRent.womanJob}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        forRent: {
-                          ...property.forRent,
-                          womanJob: e.target.value,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <div className="font-medium mb-2">Property owner information</div>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <div className="font-medium mb-2">Name</div>
-                  <input
-                    type="text"
-                    value={property.owner.name}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        owner: { ...property.owner, name: e.target.value },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Phone</div>
-                  <input
-                    type="text"
-                    value={property.owner.phone}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        owner: { ...property.owner, phone: e.target.value },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Email</div>
-                  <input
-                    type="email"
-                    value={property.owner.email}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        owner: { ...property.owner, email: e.target.value },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Telegram link</div>
-                  <input
-                    type="text"
-                    value={property.owner.telegram}
-                    onChange={(e) =>
-                      setProperty({
-                        ...property,
-                        owner: { ...property.owner, telegram: e.target.value },
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mr-2"
-            >
-              Cancel
+        <div className="flex justify-between mt-8">
+            <button onClick={() => setCurrentStep(s => Math.max(0, s-1))} disabled={currentStep === 0} className="flex items-center px-6 py-2 border rounded disabled:opacity-50"><ArrowLeft className="h-5 w-5 mr-2"/> Back</button>
+            {currentStep < steps.length - 1 ? (
+                <button onClick={() => setCurrentStep(s => Math.min(steps.length - 1, s+1))} className="flex items-center px-6 py-2 bg-green-800 text-white rounded"><ArrowRight className="h-5 w-5 ml-2"/> Next</button>
+            ) : (
+                <button onClick={handleFinalSubmit} disabled={isSubmitting} className="flex items-center px-6 py-2 bg-green-800 text-white rounded disabled:bg-gray-400">
+                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin mr-2"/> : <Save className="h-5 w-5 mr-2"/>}
+                    Save Changes
             </button>
-            <button
-              type="submit"
-              className="bg-green-800 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            >
-              Update
-            </button>
+            )}
           </div>
-        </form>
       </div>
     </Sidebar>
   );

@@ -7,6 +7,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { LayoutDashboard, Home, Settings, LogOut } from "lucide-react"
+import { getCurrentUser } from '@/lib/utils/user-api'
 
 interface SidebarProps {
   children: React.ReactNode
@@ -15,18 +16,19 @@ interface SidebarProps {
 export default function Sidebar({ children }: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const [user, setUser] = useState<{ email: string } | null>(null)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    // Check if user is logged in
-    const storedUser = localStorage.getItem("user") || sessionStorage.getItem("user")
-
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    } else {
-      // Redirect to login if not logged in
-      router.push("/login")
+    async function fetchUser() {
+      try {
+        const userData = await getCurrentUser();
+        setUser(userData)
+      } catch (e) {
+        // If not logged in, redirect
+        router.push("/login")
+      }
     }
+    fetchUser();
   }, [router])
 
   // If user is not loaded yet, show loading
@@ -99,11 +101,15 @@ export default function Sidebar({ children }: SidebarProps) {
           <div className="flex justify-end">
             <div className="flex items-center">
               <div className="mr-3 text-right">
-                <div className="text-sm font-medium">Song Lyne</div>
+                <div className="text-sm font-medium">{user.name}</div>
                 <div className="text-xs text-gray-500">{user.email}</div>
               </div>
               <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                <Image src="/avatar-placeholder.png" alt="User Avatar" width={40} height={40} />
+                {user.profile_picture_url ? (
+                  <Image src={user.profile_picture_url} alt="User Avatar" width={40} height={40} />
+                ) : (
+                  <Image src="/avatar-placeholder.png" alt="User Avatar" width={40} height={40} />
+                )}
               </div>
             </div>
           </div>

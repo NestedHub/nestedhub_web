@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { LayoutGrid, Home } from 'lucide-react';
 import Sidebar from '@/component/dashoboadpropertyowner/sidebar';
 import Card from '@/component/dashoboadpropertyowner/card';
+import { propertyApi } from '@/lib/api/property';
 
 interface PropertyOwnerStats {
   totalProperties: number;
@@ -21,41 +22,11 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Get the user data from localStorage
-        const user = localStorage.getItem('user');
-        if (!user) {
-          throw new Error('Not authenticated');
-        }
-        const userData = JSON.parse(user);
-        if (userData.role !== 'property_owner') {
-          throw new Error('Not authorized');
-        }
-
-        // First, get total properties
-        const myListingsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/properties/my-listings`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        });
-
-        if (!myListingsResponse.ok) {
-          if (myListingsResponse.status === 401) {
-            throw new Error('Not authenticated');
-          }
-          throw new Error('Failed to fetch properties');
-        }
-
-        const listingsData = await myListingsResponse.json();
-        const totalProperties = listingsData.properties.length;
-        const activeProperties = listingsData.properties.filter(
-          (property: any) => property.status === 'available'
-        ).length;
-
+        // Fetch property stats for the current owner
+        const statsData = await propertyApi.getOwnerStats();
         setStats({
-          totalProperties,
-          activeProperties,
+          totalProperties: statsData.total_owned || 0,
+          activeProperties: statsData.total_rented || 0, // You may want to use a different field if available
         });
       } catch (err) {
         console.error('Error fetching dashboard stats:', err);
@@ -64,7 +35,6 @@ export default function DashboardPage() {
         setIsLoading(false);
       }
     };
-
     fetchStats();
   }, []);
 

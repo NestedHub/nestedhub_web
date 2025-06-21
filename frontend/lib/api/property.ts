@@ -1,38 +1,5 @@
 import { getAuthHeaders } from './auth';
-
-export interface PropertyImage {
-  image_id: number;
-  image_url: string;
-  is_primary: boolean;
-}
-
-export interface Feature {
-  feature_id: number;
-  feature_name: string;
-}
-
-export interface Property {
-  property_id: number;
-  title: string;
-  description: string;
-  rent_price: number;
-  address: string;
-  city: string;
-  district: string;
-  commune: string;
-  latitude: number;
-  longitude: number;
-  bedrooms: number;
-  bathrooms: number;
-  floor_area: number;
-  status: 'pending' | 'available' | 'rented' | 'hidden';
-  category: string;
-  features: Feature[];
-  images: PropertyImage[];
-  owner_id: number;
-  created_at: string;
-  updated_at: string;
-}
+import { Property } from '@/lib/types';
 
 export interface PropertySearchParams {
   keyword?: string;
@@ -43,8 +10,8 @@ export interface PropertySearchParams {
   status?: 'pending' | 'available' | 'rented' | 'hidden';
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
-  offset?: number;
   limit?: number;
+  offset?: number;
 }
 
 export interface PropertyUpdateParams {
@@ -70,7 +37,7 @@ export const propertyApi = {
   searchProperties: async (params: PropertySearchParams = {}): Promise<{ items: Property[], total: number }> => {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) {
+      if (value !== undefined && value !== null) {
         queryParams.append(key, value.toString());
       }
     });
@@ -87,26 +54,11 @@ export const propertyApi = {
       throw new Error('Failed to search properties');
     }
 
-    const data = await response.json();
-    // Normalize for different backend shapes
-    if ('properties' in data && 'total' in data) {
-      return { items: data.properties, total: data.total };
-    }
-    if (Array.isArray(data)) {
-      return { items: data, total: data.length };
-    }
-    if ('items' in data && 'total' in data) {
-      return data;
-    }
-    if ('results' in data && 'count' in data) {
-      return { items: data.results, total: data.count };
-    }
-    // fallback
-    return { items: [], total: 0 };
+    return response.json();
   },
 
   // Get a single property by ID
-  getProperty: async (propertyId: number): Promise<Property> => {
+  getProperty: async (propertyId: string): Promise<Property> => {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/properties/${propertyId}`,
       {
@@ -123,7 +75,7 @@ export const propertyApi = {
   },
 
   // Update a property
-  updateProperty: async (propertyId: number, data: PropertyUpdateParams): Promise<Property> => {
+  updateProperty: async (propertyId: string, data: PropertyUpdateParams): Promise<Property> => {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/properties/${propertyId}`,
       {
@@ -138,7 +90,8 @@ export const propertyApi = {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to update property');
+      const errorData = await response.json().catch(() => ({ detail: 'Failed to update property' }));
+      throw new Error(errorData.detail);
     }
 
     return response.json();
@@ -162,7 +115,7 @@ export const propertyApi = {
   },
 
   // Delete a property
-  deleteProperty: async (propertyId: number): Promise<void> => {
+  deleteProperty: async (propertyId: string): Promise<void> => {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/properties/${propertyId}`,
       {
@@ -175,5 +128,61 @@ export const propertyApi = {
     if (!response.ok) {
       throw new Error('Failed to delete property');
     }
-  }
+  },
+
+  // Get property stats for the current owner
+  getOwnerStats: async (): Promise<{ total_owned: number; total_rented: number }> => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/properties/stats`,
+      {
+        headers: await getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to fetch property stats');
+    }
+    return response.json();
+  },
+
+  // Create a new property
+  createProperty: async (data: any): Promise<Property> => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/properties/`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(await getAuthHeaders()),
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Failed to create property' }));
+      throw new Error(errorData.detail);
+    }
+    return response.json();
+  },
+
+  getOwnerListings: async (searchTerm?: string): Promise<{ properties: any[] }> => {
+    const queryParams = new URLSearchParams();
+    if (searchTerm) {
+      queryParams.append('keyword', searchTerm);
+    }
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/properties/my-listings?${queryParams.toString()}`,
+      {
+        headers: await getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+    if (!response.ok) {
+      throw new Error("Failed to fetch owner's listings");
+    }
+    // The backend returns { "properties": [...] }
+    return response.json();
+  },
 }; 

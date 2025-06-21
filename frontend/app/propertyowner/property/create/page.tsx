@@ -1,983 +1,314 @@
 "use client";
 
-import type React from "react";
-
-import { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { Loader2, UploadCloud, CheckCircle, ArrowLeft, ArrowRight } from "lucide-react";
+import { toast } from "react-hot-toast";
+
 import Sidebar from "@/component/dashoboadpropertyowner/sidebar";
-// Define the steps for property creation
-const steps = [
-  { id: "general", label: "General" },
-  { id: "location", label: "Location" },
-  { id: "cost", label: "Cost" },
-  { id: "image", label: "Image and video" },
-  { id: "contacts", label: "Contacts" },
-];
+import { propertyApi } from '@/lib/api/property';
+import { propertyOwnerApi } from '@/lib/api/propertyOwner';
 
-// Define types for our form data
-type Facilities = {
-  guard: boolean;
-  airConditioning: boolean;
-  internet: boolean;
-  parking: boolean;
+// --- Helper to fetch dynamic data ---
+const fetchFilters = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${url}`);
+  return res.json();
 };
 
-type ForRent = {
-  maleStudent: boolean;
-  femaleStudent: boolean;
-  manJob: boolean;
-  womanJob: boolean;
-};
+const steps = ["General", "Location", "Pricing & Features", "Images", "Review"];
 
-type GeneralSection = {
-  propertyOwner: string;
-  propertyType: string;
-  availableFrom: string;
+// --- Form Data Interfaces ---
+interface FormData {
   title: string;
   description: string;
-  bedrooms: string;
-  bathrooms: string;
-  facilities: Facilities;
-  forRent: ForRent;
-};
+    bedrooms: number;
+    bathrooms: number;
+    land_area: number;
+    floor_area: number;
+    status: string;
+    category_id?: number;
+    feature_ids: number[];
+    rent_price: number;
+    available_from: string;
+    street_number: string;
+    latitude: number;
+    longitude: number;
+    city_id?: number;
+    district_id?: number;
+    commune_id?: number;
+    media: { media_url: string; media_type: string }[];
+}
 
-type LocationSection = {
-  city: string;
-  khan: string;
-  sangkat: string;
-  streetName: string;
-  streetNumber: string;
-  mapLocation: string;
-};
-
-type CostSection = {
-  rentPrice: string;
-  electric: string;
-  water: string;
-  other: string;
-};
-
-type ImageSection = {
-  propertyImage: File | null;
-  neighborhoodImage: File | null;
-};
-
-type ContactsSection = {
-  ownerName: string;
-  phone: string;
-  email: string;
-  telegram: string;
-};
-
-type FormData = {
-  general: GeneralSection;
-  location: LocationSection;
-  cost: CostSection;
-  image: ImageSection;
-  contacts: ContactsSection;
-};
-
-// Initial form state
-const initialFormState: FormData = {
-  general: {
-    propertyOwner: "",
-    propertyType: "Apartment",
-    availableFrom: "01 Nov 2024",
+const initialFormData: FormData = {
     title: "",
     description: "",
-    bedrooms: "1",
-    bathrooms: "1",
-    facilities: {
-      guard: false,
-      airConditioning: false,
-      internet: false,
-      parking: false,
-    },
-    forRent: {
-      maleStudent: false,
-      femaleStudent: false,
-      manJob: false,
-      womanJob: false,
-    },
-  },
-  location: {
-    city: "Phnom Penh",
-    khan: "Phnom Penh",
-    sangkat: "Bak Kilo",
-    streetName: "Phnom Penh",
-    streetNumber: "Phnom Penh",
-    mapLocation: "",
-  },
-  cost: {
-    rentPrice: "$0.00",
-    electric: "$0.00",
-    water: "$0.00",
-    other: "$0.00",
-  },
-  image: {
-    propertyImage: null,
-    neighborhoodImage: null,
-  },
-  contacts: {
-    ownerName: "",
-    phone: "",
-    email: "",
-    telegram: "",
-  },
+    bedrooms: 1,
+    bathrooms: 1,
+    land_area: 100,
+    floor_area: 80,
+    status: "available",
+    feature_ids: [],
+    rent_price: 500,
+    available_from: new Date().toISOString().split('T')[0],
+    street_number: "",
+    latitude: 11.5564,
+    longitude: 104.9282,
+    media: [],
 };
+
 
 export default function CreatePropertyPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState<FormData>(initialFormState);
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleSubmit();
+  // --- Form State ---
+  const [formData, setFormData] = useState<FormData>(initialFormData);
+  
+  // --- Dynamic Data State ---
+  const [categories, setCategories] = useState<{ category_id: number; category_name: string }[]>([]);
+  const [features, setFeatures] = useState<{ feature_id: number; feature_name: string }[]>([]);
+  const [cities, setCities] = useState<{ city_id: number; city_name: string }[]>([]);
+  const [districts, setDistricts] = useState<{ district_id: number; district_name: string }[]>([]);
+  const [communes, setCommunes] = useState<{ commune_id: number; commune_name: string }[]>([]);
+
+  // --- Control State ---
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // --- Fetch initial data ---
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const [categoriesData, featuresData, citiesData] = await Promise.all([
+          fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/categories`),
+          fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/features`),
+          fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/cities`),
+        ]);
+        setCategories(categoriesData);
+        setFeatures(featuresData);
+        setCities(citiesData);
+        if (categoriesData.length > 0) setFormData(prev => ({...prev, category_id: categoriesData[0].category_id}));
+        if (citiesData.length > 0) setFormData(prev => ({...prev, city_id: citiesData[0].city_id}));
+      } catch (error) {
+        toast.error("Failed to load form data. Please refresh.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadInitialData();
+  }, []);
+
+  // --- Fetch chained location data ---
+  useEffect(() => {
+    if (!formData.city_id) return;
+    const loadDistricts = async () => {
+      const districtsData = await fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/districts?city_id=${formData.city_id}`);
+      setDistricts(districtsData);
+      setFormData(prev => ({ ...prev, district_id: districtsData[0]?.district_id }));
+    };
+    loadDistricts();
+  }, [formData.city_id]);
+
+  useEffect(() => {
+    if (!formData.district_id) return;
+    const loadCommunes = async () => {
+      const communesData = await fetchFilters(`${process.env.NEXT_PUBLIC_API_URL}/api/properties/filters/communes?district_id=${formData.district_id}`);
+      setCommunes(communesData);
+      setFormData(prev => ({ ...prev, commune_id: communesData[0]?.commune_id }));
+    };
+    loadCommunes();
+  }, [formData.district_id]);
+    
+  // --- Handlers ---
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: name.includes('_id') || ['bedrooms', 'bathrooms', 'land_area', 'floor_area', 'rent_price'].includes(name) ? Number(value) : value }));
+  };
+
+  const handleFeatureToggle = (id: number) => {
+    setFormData(prev => ({
+        ...prev,
+        feature_ids: prev.feature_ids.includes(id) ? prev.feature_ids.filter(fid => fid !== id) : [...prev.feature_ids, id]
+    }));
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Temporarily disabled
+    toast.error("Image upload is temporarily disabled.");
+    return;
+    /*
+    const files = e.target.files;
+    if (!files) return;
+    
+    setIsUploading(true);
+    toast.loading("Uploading images...");
+    try {
+      const uploadPromises = Array.from(files).map(file => propertyOwnerApi.uploadImageToCloudinary(file));
+      const results = await Promise.all(uploadPromises);
+      const newMedia = results.map(result => ({ media_url: result.secure_url, media_type: 'image' }));
+      setFormData(prev => ({ ...prev, media: [...prev.media, ...newMedia] }));
+      toast.dismiss();
+      toast.success("Images uploaded successfully!");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Image upload failed.");
+    } finally {
+      setIsUploading(false);
+    }
+    */
+  };
+
+  const handleFinalSubmit = async () => {
+    if (!formData.category_id || !formData.city_id || !formData.district_id || !formData.commune_id) {
+        toast.error("Please ensure all location and category fields are selected.");
+        return;
+    }
+    
+    setIsSubmitting(true);
+    toast.loading("Creating property...");
+    try {
+      const { city_id, district_id, commune_id, street_number, latitude, longitude, ...restOfData } = formData;
+      const payload = {
+          ...restOfData,
+          location: { city_id, district_id, commune_id, street_number, latitude, longitude },
+          pricing: { rent_price: formData.rent_price, available_from: formData.available_from || null }
+      };
+      
+      await propertyApi.createProperty(payload);
+      toast.dismiss();
+      toast.success("Property created successfully! Redirecting...");
+      
+      // Redirect after a short delay to allow toast to be seen
+      setTimeout(() => {
+        router.push("/propertyowner/property");
+      }, 1500);
+
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(error.message || "Failed to create property.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    } else {
-      router.push("/propertyowner/property");
-    }
-  };
-
-  const handleSubmit = () => {
-    // In a real app, you would call an API to create the property
-    console.log("Form submitted:", formData);
-    alert("Property created successfully!");
-    router.push("/propertyowner/property");
-  };
-
-  const updateFormData = <
-    K extends keyof FormData,
-    T extends keyof FormData[K]
-  >(
-    section: K,
-    field: T,
-    value: FormData[K][T]
-  ) => {
-    setFormData({
-      ...formData,
-      [section]: {
-        ...formData[section],
-        [field]: value,
-      },
-    });
-  };
-
-  const updateNestedFormData = <
-    K extends keyof FormData,
-    P extends keyof FormData[K],
-    T extends keyof FormData[K][P]
-  >(
-    section: K,
-    parentField: P,
-    field: T,
-    value: FormData[K][P][T]
-  ) => {
-    setFormData({
-      ...formData,
-      [section]: {
-        ...formData[section],
-        [parentField]: {
-          ...formData[section][parentField],
-          [field]: value,
-        } as FormData[K][P],
-      },
-    });
-  };
-
-  const toggleFacility = (facility: keyof Facilities) => {
-    updateNestedFormData(
-      "general",
-      "facilities",
-      facility,
-      !formData.general.facilities[facility] as boolean
-    );
-  };
-
-  const toggleForRent = (option: keyof ForRent) => {
-    updateNestedFormData(
-      "general",
-      "forRent",
-      option,
-      !formData.general.forRent[option] as boolean
-    );
-  };
-
-  const handleFileChange = (
-    section: "image",
-    field: keyof ImageSection,
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData({
-        ...formData,
-        [section]: {
-          ...formData[section],
-          [field]: e.target.files[0],
-        },
-      });
-    }
-  };
-
-  // Render different form sections based on current step
   const renderStepContent = () => {
     switch (currentStep) {
       case 0: // General
         return (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Property owner
-              </label>
-              <input
-                type="text"
-                value={formData.general.propertyOwner}
-                onChange={(e) =>
-                  updateFormData("general", "propertyOwner", e.target.value)
-                }
-                placeholder="Name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Property type
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.general.propertyType}
-                  onChange={(e) =>
-                    updateFormData("general", "propertyType", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-                >
-                  <option value="Apartment">Apartment</option>
-                  <option value="House">House</option>
-                  <option value="Villa">Villa</option>
-                  <option value="Condo">Condo</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                <div className="space-y-4">
+                    <h2 className="text-xl font-semibold">General Information</h2>
+                    <div><label>Title <span className="text-red-500">*</span></label><input name="title" value={formData.title} onChange={handleChange} className="w-full p-2 border rounded" required /></div>
+                    <div><label>Description</label><textarea name="description" value={formData.description} onChange={handleChange} className="w-full p-2 border rounded" rows={4}></textarea></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div><label>Bedrooms <span className="text-red-500">*</span></label><input name="bedrooms" type="number" value={formData.bedrooms} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Bathrooms <span className="text-red-500">*</span></label><input name="bathrooms" type="number" value={formData.bathrooms} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Floor Area (m²) <span className="text-red-500">*</span></label><input name="floor_area" type="number" value={formData.floor_area} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Land Area (m²) <span className="text-red-500">*</span></label><input name="land_area" type="number" value={formData.land_area} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                    </div>
                 </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Available from:
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.general.availableFrom}
-                  onChange={(e) =>
-                    updateFormData("general", "availableFrom", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-                >
-                  <option value="01 Nov 2024">01 Nov 2024</option>
-                  <option value="15 Nov 2024">15 Nov 2024</option>
-                  <option value="01 Dec 2024">01 Dec 2024</option>
-                  <option value="15 Dec 2024">15 Dec 2024</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+            );
+        case 1: // Location
+            return (
+                <div className="space-y-4">
+                     <h2 className="text-xl font-semibold">Location</h2>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label>City/Province <span className="text-red-500">*</span></label><select name="city_id" value={formData.city_id} onChange={handleChange} className="w-full p-2 border rounded">{cities.map(c => <option key={c.city_id} value={c.city_id}>{c.city_name}</option>)}</select></div>
+                        <div><label>District/Khan <span className="text-red-500">*</span></label><select name="district_id" value={formData.district_id} onChange={handleChange} className="w-full p-2 border rounded">{districts.map(d => <option key={d.district_id} value={d.district_id}>{d.district_name}</option>)}</select></div>
+                        <div><label>Commune/Sangkat <span className="text-red-500">*</span></label><select name="commune_id" value={formData.commune_id} onChange={handleChange} className="w-full p-2 border rounded">{communes.map(c => <option key={c.commune_id} value={c.commune_id}>{c.commune_name}</option>)}</select></div>
+                        <div><label>Street Number</label><input name="street_number" value={formData.street_number} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Latitude <span className="text-red-500">*</span></label><input name="latitude" type="number" step="any" value={formData.latitude} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        <div><label>Longitude <span className="text-red-500">*</span></label><input name="longitude" type="number" step="any" value={formData.longitude} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                    </div>
+                    {/* Add Google Maps component here */}
                 </div>
-              </div>
-            </div>
-
+            );
+        case 2: // Pricing & Features
+             return (
+                <div className="space-y-6">
+                    <div>
+                        <h2 className="text-xl font-semibold mb-4">Pricing & Availability</h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label>Rent Price (USD) <span className="text-red-500">*</span></label><input name="rent_price" type="number" value={formData.rent_price} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                            <div><label>Available From</label><input name="available_from" type="date" value={formData.available_from} onChange={handleChange} className="w-full p-2 border rounded" /></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-semibold mb-4">Features & Category</h2>
+                        <div><label>Category <span className="text-red-500">*</span></label><select name="category_id" value={formData.category_id} onChange={handleChange} className="w-full p-2 border rounded mb-4">{categories.map(c => <option key={c.category_id} value={c.category_id}>{c.category_name}</option>)}</select></div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {features.map(feature => (
+                                <label key={feature.feature_id} className="flex items-center space-x-2"><input type="checkbox" checked={formData.feature_ids.includes(feature.feature_id)} onChange={() => handleFeatureToggle(feature.feature_id)} /><span>{feature.feature_name}</span></label>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        case 3: // Images
+            return (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Property detail
+                    <h2 className="text-xl font-semibold mb-4">Images</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        {formData.media.map(m => <img key={m.media_url} src={m.media_url} alt="property" className="w-full h-32 object-cover rounded"/>)}
+                </div>
+                    <label htmlFor="image-upload" className="flex justify-center items-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                        {isUploading ? <Loader2 className="h-8 w-8 animate-spin"/> : <UploadCloud className="h-8 w-8 text-gray-400"/>}
               </label>
-              <input
-                type="text"
-                value={formData.general.title}
-                onChange={(e) =>
-                  updateFormData("general", "title", e.target.value)
-                }
-                placeholder="Title"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2"
-              />
-              <textarea
-                value={formData.general.description}
-                onChange={(e) =>
-                  updateFormData("general", "description", e.target.value)
-                }
-                placeholder="Description"
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              ></textarea>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bedroom
-              </label>
-              <input
-                type="number"
-                value={formData.general.bedrooms}
-                onChange={(e) =>
-                  updateFormData("general", "bedrooms", e.target.value)
-                }
-                min="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bathroom
-              </label>
-              <input
-                type="number"
-                value={formData.general.bathrooms}
-                onChange={(e) =>
-                  updateFormData("general", "bathrooms", e.target.value)
-                }
-                min="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Facilities
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => toggleFacility("guard")}
-                  className={`px-3 py-1 rounded-md ${
-                    formData.general.facilities.guard
-                      ? "bg-green-800 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Guard
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleFacility("airConditioning")}
-                  className={`px-3 py-1 rounded-md ${
-                    formData.general.facilities.airConditioning
-                      ? "bg-green-800 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Air Conditioning
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleFacility("internet")}
-                  className={`px-3 py-1 rounded-md ${
-                    formData.general.facilities.internet
-                      ? "bg-green-800 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Internet / Wifi
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleFacility("parking")}
-                  className={`px-3 py-1 rounded-md ${
-                    formData.general.facilities.parking
-                      ? "bg-green-800 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Parking
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                For rent
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => toggleForRent("maleStudent")}
-                  className={`px-3 py-1 rounded-md ${
-                    formData.general.forRent.maleStudent
-                      ? "bg-green-800 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Male Student
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleForRent("femaleStudent")}
-                  className={`px-3 py-1 rounded-md ${
-                    formData.general.forRent.femaleStudent
-                      ? "bg-green-800 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Female Student
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleForRent("manJob")}
-                  className={`px-3 py-1 rounded-md ${
-                    formData.general.forRent.manJob
-                      ? "bg-green-800 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Man Job
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleForRent("womanJob")}
-                  className={`px-3 py-1 rounded-md ${
-                    formData.general.forRent.womanJob
-                      ? "bg-green-800 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Woman Job
-                </button>
-              </div>
-            </div>
+                    <input id="image-upload" type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
           </div>
         );
-
-      case 1: // Location
+        case 4: // Review
         return (
-          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                City / Province:
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.location.city}
-                  onChange={(e) =>
-                    updateFormData("location", "city", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-                >
-                  <option value="Phnom Penh">Phnom Penh</option>
-                  <option value="Siem Reap">Siem Reap</option>
-                  <option value="Battambang">Battambang</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Khan / District:
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.location.khan}
-                  onChange={(e) =>
-                    updateFormData("location", "khan", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-                >
-                  <option value="Phnom Penh">Phnom Penh</option>
-                  <option value="Chamkarmon">Chamkarmon</option>
-                  <option value="Daun Penh">Daun Penh</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sangkat / Commune:
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.location.sangkat}
-                  onChange={(e) =>
-                    updateFormData("location", "sangkat", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-                >
-                  <option value="Bak Kilo">Bak Kilo</option>
-                  <option value="Boeung Keng Kang">Boeung Keng Kang</option>
-                  <option value="Tuol Svay Prey">Tuol Svay Prey</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Street Name:
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.location.streetName}
-                  onChange={(e) =>
-                    updateFormData("location", "streetName", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-                >
-                  <option value="Phnom Penh">Phnom Penh</option>
-                  <option value="Street 271">Street 271</option>
-                  <option value="Street 310">Street 310</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Street Number:
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.location.streetNumber}
-                  onChange={(e) =>
-                    updateFormData("location", "streetNumber", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-                >
-                  <option value="Phnom Penh">Phnom Penh</option>
-                  <option value="123">123</option>
-                  <option value="456">456</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Display Location on Map:
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.location.mapLocation}
-                  onChange={(e) =>
-                    updateFormData("location", "mapLocation", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none"
-                >
-                  <option value="">Select location</option>
-                  <option value="Phnom Penh">Phnom Penh</option>
-                  <option value="Specific Location">Specific Location</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              <div className="mt-4 border border-gray-300 rounded-md overflow-hidden">
-                <Image
-                  src="/map-placeholder.png"
-                  alt="Map"
-                  width={600}
-                  height={300}
-                  className="w-full h-auto"
-                />
-              </div>
+                    <h2 className="text-xl font-semibold mb-4">Review & Submit</h2>
+                    <div className="space-y-2">
+                        <p><strong>Title:</strong> {formData.title}</p>
+                        <p><strong>Category:</strong> {categories.find(c => c.category_id === formData.category_id)?.category_name}</p>
+                        <p><strong>Location:</strong> {cities.find(c=>c.city_id === formData.city_id)?.city_name}, {districts.find(d=>d.district_id === formData.district_id)?.district_name}, {communes.find(c=>c.commune_id === formData.commune_id)?.commune_name}</p>
+                        <p><strong>Rent:</strong> ${formData.rent_price}/month</p>
+                        <p><strong>Images:</strong> {formData.media.length}</p>
+                        <p><strong>Features:</strong> {formData.feature_ids.length}</p>
             </div>
           </div>
         );
-
-      case 2: // Cost
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rent Price
-              </label>
-              <input
-                type="text"
-                value={formData.cost.rentPrice}
-                onChange={(e) =>
-                  updateFormData("cost", "rentPrice", e.target.value)
-                }
-                placeholder="$0.00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Electric
-              </label>
-              <input
-                type="text"
-                value={formData.cost.electric}
-                onChange={(e) =>
-                  updateFormData("cost", "electric", e.target.value)
-                }
-                placeholder="$0.00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Water
-              </label>
-              <input
-                type="text"
-                value={formData.cost.water}
-                onChange={(e) =>
-                  updateFormData("cost", "water", e.target.value)
-                }
-                placeholder="$0.00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Other
-              </label>
-              <input
-                type="text"
-                value={formData.cost.other}
-                onChange={(e) =>
-                  updateFormData("cost", "other", e.target.value)
-                }
-                placeholder="$0.00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-          </div>
-        );
-
-      case 3: // Image and video
-        return (
-          <div className="space-y-8">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Property Image
-              </label>
-              <div className="bg-gray-200 w-64 h-48 rounded-md flex items-center justify-center mb-2">
-                {formData.image.propertyImage ? (
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">
-                      {formData.image.propertyImage.name}
-                    </p>
-                  </div>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-16 w-16 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 mb-2">
-                JPG/PNG files with a size less than 500KB
-              </p>
-              <label className="bg-teal-100 hover:bg-teal-200 text-teal-700 px-4 py-2 rounded-md cursor-pointer inline-block">
-                <span>Upload</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    handleFileChange("image", "propertyImage", e)
-                  }
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Neighborhood Image
-              </label>
-              <div className="bg-gray-200 w-64 h-48 rounded-md flex items-center justify-center mb-2">
-                {formData.image.neighborhoodImage ? (
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">
-                      {formData.image.neighborhoodImage.name}
-                    </p>
-                  </div>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-16 w-16 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 mb-2">
-                JPG/PNG files with a size less than 500KB
-              </p>
-              <label className="bg-teal-100 hover:bg-teal-200 text-teal-700 px-4 py-2 rounded-md cursor-pointer inline-block">
-                <span>Upload</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    handleFileChange("image", "neighborhoodImage", e)
-                  }
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
-        );
-
-      case 4: // Contacts
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-4">
-                Owner of this property
-              </label>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Username:
-              </label>
-              <input
-                type="text"
-                value={formData.contacts.ownerName}
-                onChange={(e) =>
-                  updateFormData("contacts", "ownerName", e.target.value)
-                }
-                placeholder="Name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone:
-              </label>
-              <input
-                type="tel"
-                value={formData.contacts.phone}
-                onChange={(e) =>
-                  updateFormData("contacts", "phone", e.target.value)
-                }
-                placeholder="Phone Number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address:
-              </label>
-              <input
-                type="email"
-                value={formData.contacts.email}
-                onChange={(e) =>
-                  updateFormData("contacts", "email", e.target.value)
-                }
-                placeholder="Email"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Telegram link:
-              </label>
-              <input
-                type="text"
-                value={formData.contacts.telegram}
-                onChange={(e) =>
-                  updateFormData("contacts", "telegram", e.target.value)
-                }
-                placeholder="Telegram link"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
+        default: return null;
     }
   };
 
+  if (isLoading) {
+    return <Sidebar><div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /><p className="ml-2">Loading form...</p></div></Sidebar>;
+  }
+
   return (
     <Sidebar>
-      <div className="p-6">
+      <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Property Listing</h1>
+            <div className="flex items-center justify-between mb-4">
+                <h1 className="text-2xl font-bold">Create New Property</h1>
+                <span className="text-sm font-medium text-gray-500">Step {currentStep + 1} of {steps.length}</span>
         </div>
-
-        <div className="mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+            <div className="flex space-x-2">
               {steps.map((step, index) => (
-                <button
-                  key={step.id}
-                  onClick={() => setCurrentStep(index)}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                    currentStep === index
-                      ? "border-green-800 text-green-800"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  {step.label}
-                </button>
-              ))}
-            </nav>
+                    <div key={step} className={`flex-1 h-2 rounded-full ${index <= currentStep ? 'bg-green-600' : 'bg-gray-200'}`}></div>
+                ))}
           </div>
         </div>
 
-        <div className="mb-8">{renderStepContent()}</div>
+        <div className="p-8 border rounded-lg bg-white min-h-[400px]">
+            {renderStepContent()}
+        </div>
 
-        <div className="flex justify-end">
-          {currentStep > 0 && (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mr-2"
-            >
-              Back
+        <div className="flex justify-between mt-8">
+            <button onClick={() => setCurrentStep(s => Math.max(0, s-1))} disabled={currentStep === 0} className="flex items-center px-6 py-2 border rounded disabled:opacity-50"><ArrowLeft className="h-5 w-5 mr-2"/> Back</button>
+            {currentStep < steps.length - 1 ? (
+                <button onClick={() => setCurrentStep(s => Math.min(steps.length - 1, s+1))} className="flex items-center px-6 py-2 bg-green-800 text-white rounded"><ArrowRight className="h-5 w-5 ml-2"/> Next</button>
+            ) : (
+                <button onClick={handleFinalSubmit} disabled={isSubmitting} className="flex items-center px-6 py-2 bg-green-800 text-white rounded disabled:bg-gray-400">
+                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin mr-2"/> : <CheckCircle className="h-5 w-5 mr-2"/>}
+                    Create Property
             </button>
           )}
-          <button
-            type="button"
-            onClick={handleNext}
-            className="bg-green-800 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-          >
-            {currentStep === steps.length - 1 ? "Submit" : "Next"}
-          </button>
         </div>
       </div>
     </Sidebar>
