@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface PropertyApiResponse {
   total: number
@@ -181,4 +181,3 @@ export async function createViewingRequest(property_id: number, requested_time: 
 
   return response.json();
 }
-

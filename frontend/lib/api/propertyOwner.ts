@@ -2,6 +2,9 @@ import { getAuthHeaders } from './auth';
 
 // Dashboard data for property owner
 export const propertyOwnerApi = {
+  // Get auth headers for API calls
+  getAuthHeaders: getAuthHeaders,
+
   // Fetch dashboard data for the logged-in property owner
   getDashboard: async () => {
     const response = await fetch(
@@ -145,6 +148,69 @@ export const propertyOwnerApi = {
     );
     if (!response.ok) {
       throw new Error('Failed to upload image');
+    }
+    return response.json();
+  },
+
+  // Booking Management Functions
+  // Fetch all viewing requests for properties owned by the current user
+  getOwnerViewingRequests: async () => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/viewing-requests/owner/requests`,
+      {
+        headers: await getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to fetch viewing requests');
+    }
+    return response.json();
+  },
+
+  // Fetch upcoming viewing requests for properties owned by the current user
+  getOwnerUpcomingViewingRequests: async () => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/viewing-requests/owner/upcoming`,
+      {
+        headers: await getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to fetch upcoming viewing requests');
+    }
+    return response.json();
+  },
+
+  // Accept a viewing request
+  acceptViewingRequest: async (requestId: number) => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/viewing-requests/${requestId}/accept`,
+      {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to accept viewing request');
+    }
+    return response.json();
+  },
+
+  // Deny a viewing request
+  denyViewingRequest: async (requestId: number) => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/viewing-requests/${requestId}/deny`,
+      {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        credentials: 'include',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to deny viewing request');
     }
     return response.json();
   },

@@ -90,28 +90,28 @@ export default function SignUpForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
+          <input
+            type="text"
           name="name"
-          placeholder="Full Name"
+            placeholder="Full Name"
           value={formData.name}
-          onChange={handleChange}
-          required
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-        <input
-          type="email"
-          name="email"
-          placeholder="Enter Email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-        <input
-          type="tel"
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <input
+            type="email"
+            name="email"
+            placeholder="Enter Email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <input
+            type="tel"
           name="phone"
-          placeholder="Phone Number"
+            placeholder="Phone Number"
           value={formData.phone}
           onChange={handleChange}
           required
@@ -122,25 +122,25 @@ export default function SignUpForm() {
           name="password"
           placeholder="Password"
           value={formData.password}
-          onChange={handleChange}
-          required
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-        <input
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <input
           type="password"
           name="confirmPassword"
           placeholder="Confirm Password"
           value={formData.confirmPassword}
-          onChange={handleChange}
-          required
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
 
         <label className="w-full flex flex-col items-center px-4 py-3 bg-white text-gray-500 rounded-md border-2 border-dashed cursor-pointer hover:bg-gray-50 hover:border-green-500">
           <UploadCloud className="h-8 w-8 text-gray-400" />
           <span className="mt-2 text-sm text-center">{formData.idCardImage ? formData.idCardImage.name : "Upload ID Card (Required)"}</span>
-          <input type="file" name="idCardImage" accept="image/*" onChange={handleFileChange} className="hidden" />
-        </label>
+            <input type="file" name="idCardImage" accept="image/*" onChange={handleFileChange} className="hidden" />
+          </label>
 
         <button
           type="submit"
