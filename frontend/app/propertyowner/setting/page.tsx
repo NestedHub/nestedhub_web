@@ -21,7 +21,7 @@ export default function SettingsPage() {
       setUserInfo({
         name: currentUser.name || "",
         email: currentUser.email || "",
-      });
+  });
     }
   }, [currentUser]);
 
@@ -153,40 +153,40 @@ export default function SettingsPage() {
         <div className="mt-8 max-w-md">
           <h2 className="text-lg font-medium mb-4">Change password</h2>
           <div className="bg-white p-6 rounded-lg border">
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-               <div>
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div>
                  <label className="block text-sm font-medium text-gray-700">New Password</label>
-                <input
-                  type="password"
-                  name="newPassword"
-                  placeholder="New Password"
-                  value={passwordInfo.newPassword}
-                  onChange={handlePasswordChange}
+              <input
+                type="password"
+                name="newPassword"
+                placeholder="New Password"
+                value={passwordInfo.newPassword}
+                onChange={handlePasswordChange}
                   className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div>
+              />
+            </div>
+            <div>
                 <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  placeholder="Confirm Password"
-                  value={passwordInfo.confirmPassword}
-                  onChange={handlePasswordChange}
+              <input
+                type="password"
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                value={passwordInfo.confirmPassword}
+                onChange={handlePasswordChange}
                   className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div>
-                <button
-                  type="submit"
+              />
+            </div>
+            <div>
+              <button
+                type="submit"
                   disabled={isPasswordSubmitting}
                   className="bg-[#b8c75b] hover:bg-[#a3b148] text-white py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400 flex items-center"
-                >
+              >
                   {isPasswordSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   Save new password
-                </button>
-              </div>
-            </form>
+              </button>
+            </div>
+          </form>
           </div>
         </div>
       </div>

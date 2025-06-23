@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { LayoutDashboard, Home, Settings, LogOut } from "lucide-react"
+import { LayoutDashboard, Home, Settings, LogOut, Calendar } from "lucide-react"
 import { getCurrentUser } from '@/lib/utils/user-api'
 
 interface SidebarProps {
@@ -70,6 +70,16 @@ export default function Sidebar({ children }: SidebarProps) {
           >
             <Home size={20} className="mr-3" />
             <span>Property Listing</span>
+          </Link>
+
+          <Link
+            href="/propertyowner/booking"
+            className={`flex items-center py-3 px-4 rounded-md mb-2 ${
+              pathname === "/propertyowner/booking" ? "bg-green-700" : "hover:bg-green-700"
+            }`}
+          >
+            <Calendar size={20} className="mr-3" />
+            <span>Booking Management</span>
           </Link>
 
           <Link
