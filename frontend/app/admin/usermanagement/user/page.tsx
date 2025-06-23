@@ -20,57 +20,105 @@ export default function UserManagementPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
+  console.log("Component Render: UserManagementPage");
+  console.log("Current State:", {
+    currentPage,
+    searchTerm,
+    debouncedSearchTerm,
+    isLoading,
+    totalCount,
+    totalPages,
+    usersLength: users.length,
+  });
+
   // Debounce search term
   useEffect(() => {
+    console.log("useEffect: Debouncing searchTerm:", searchTerm);
     const timer = setTimeout(() => {
+      console.log("Debounce Timer Fired: Setting debouncedSearchTerm to:", searchTerm);
       setDebouncedSearchTerm(searchTerm);
       setCurrentPage(1); // Reset to first page on new search
     }, 500);
-    return () => clearTimeout(timer);
+    return () => {
+      console.log("Debounce Timer Cleared");
+      clearTimeout(timer);
+    };
   }, [searchTerm]);
 
   // Fetch users with search and pagination
   const fetchUsers = async () => {
+    console.log("Function Call: fetchUsers initiated.");
+    console.log("fetchUsers - current debouncedSearchTerm:", debouncedSearchTerm);
+    console.log("fetchUsers - current currentPage:", currentPage);
+
     try {
       setIsLoading(true);
       const searchParams = {
         role: "customer" as const,
         name: debouncedSearchTerm || undefined,
       };
+      console.log("fetchUsers - searchParams for count:", searchParams);
 
       // Get total count
       const countResponse = await adminApi.getUserCount(searchParams);
-      setTotalCount(countResponse.total);
-      setTotalPages(Math.ceil(countResponse.total / ITEMS_PER_PAGE));
+      console.log("fetchUsers - getUserCount response:", countResponse);
+
+      if (countResponse && typeof countResponse.total === 'number') {
+        setTotalCount(countResponse.total);
+        setTotalPages(Math.ceil(countResponse.total / ITEMS_PER_PAGE));
+        console.log("fetchUsers - Total Count Set:", countResponse.total);
+        console.log("fetchUsers - Total Pages Set:", Math.ceil(countResponse.total / ITEMS_PER_PAGE));
+      } else {
+        console.warn("fetchUsers - getUserCount did not return a valid total:", countResponse);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
+
 
       // Get paginated results
-      const response = await adminApi.listUsers({
+      const listUsersParams = {
         ...searchParams,
         skip: (currentPage - 1) * ITEMS_PER_PAGE,
         limit: ITEMS_PER_PAGE,
-      });
+      };
+      console.log("fetchUsers - listUsersParams:", listUsersParams);
 
-      setUsers(response);
+      const response = await adminApi.listUsers(listUsersParams);
+      console.log("fetchUsers - listUsers response:", response);
+
+      if (Array.isArray(response)) {
+        setUsers(response);
+        console.log("fetchUsers - Users Set. Number of users:", response.length);
+      } else {
+        console.warn("fetchUsers - listUsers did not return an array:", response);
+        setUsers([]); // Ensure users is an array even on unexpected response
+      }
+
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");
     } finally {
       setIsLoading(false);
+      console.log("fetchUsers - setIsLoading(false)");
     }
   };
 
   useEffect(() => {
+    console.log("useEffect: Fetching users due to currentPage or debouncedSearchTerm change.");
     fetchUsers();
   }, [currentPage, debouncedSearchTerm]);
 
   const handleDelete = async (userId: number) => {
+    console.log("handleDelete called for userId:", userId);
     if (!confirm("Are you sure you want to permanently delete this user? This action cannot be undone.")) {
+      console.log("Delete cancelled by user.");
       return;
     }
 
     try {
       await adminApi.deleteUser(userId, true); // Pass true for hard delete
       toast.success("User deleted successfully");
+      console.log("User deleted successfully:", userId);
       fetchUsers(); // Refresh the list
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -79,6 +127,7 @@ export default function UserManagementPage() {
   };
 
   const handleBanToggle = async (userId: number, currentlyActive: boolean) => {
+    console.log("handleBanToggle called for userId:", userId, "currentlyActive:", currentlyActive);
     try {
       await adminApi.toggleUserBan(userId, currentlyActive);
       toast.success(
@@ -86,6 +135,7 @@ export default function UserManagementPage() {
           ? "User banned successfully"
           : "User unbanned successfully"
       );
+      console.log("User ban/unban successful for userId:", userId, "New status:", !currentlyActive);
       fetchUsers(); // Refresh the list
     } catch (error) {
       console.error("Error toggling user ban:", error);
@@ -94,12 +144,16 @@ export default function UserManagementPage() {
   };
 
   const handleView = (userId: number) => {
+    console.log("handleView called for userId:", userId);
     router.push(`/admin/usermanagement/user/${userId}`);
   };
 
   const handleEdit = (userId: number) => {
+    console.log("handleEdit called for userId:", userId);
     router.push(`/admin/usermanagement/user/${userId}/edit`);
   };
+
+  console.log("process.env.NEXT_PUBLIC_API_URL:", process.env.NEXT_PUBLIC_API_URL); // <-- Add this line
 
   return (
     <AdminSidebar>
@@ -241,3 +295,6 @@ export default function UserManagementPage() {
     </AdminSidebar>
   );
 }
+
+// adminApi and related types remain unchanged
+// ... (your adminApi.ts content)

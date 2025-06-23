@@ -1,4 +1,3 @@
-// pages/user/rent/index.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,16 +8,17 @@ import PropertyCard from "@/component/property/propertyCard";
 import FilterSection from "@/component/user/FilterSection";
 import { usePropertyFilters } from "@/lib/hooks/usePropertyFilters";
 import { usePropertyData } from "@/lib/hooks/usePropertyData";
-import { getUserWishlist } from "@/lib/utils/wishlist-api"; // Import wishlist API
-import { WishListResponse } from "@/lib/types"; // Assuming you have this type for wishlist items
-import { useUser } from "@/lib/hooks/useUser"; // <--- IMPORT useUser HOOK
+import { getUserWishlist } from "@/lib/utils/wishlist-api";
+import { WishListResponse } from "@/lib/types";
+import { useUser } from "@/lib/hooks/useUser";
 
 export default function PropertiesPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  const router = useRouter(); // searchParams can be removed if not directly used elsewhere
 
-  // <--- USE useUser HOOK HERE
+  console.log("PropertiesPage: Component rendering. Current time:", new Date().toISOString());
+
   const { user, isAuthenticated, isLoading: isUserLoading } = useUser();
+  console.log("PropertiesPage: useUser hook status: User:", user, "Authenticated:", isAuthenticated, "User Loading:", isUserLoading);
 
   const {
     filters,
@@ -36,116 +36,81 @@ export default function PropertiesPage() {
     districts,
     communes,
     propertyCategories,
-  } = usePropertyFilters();
+  } = usePropertyFilters(); // No need to pass searchParams here, usePropertyFilters handles it internally
 
-  // State for user's wishlist
+  console.log("PropertiesPage: Current filters from usePropertyFilters:", filters);
+  console.log("PropertiesPage: Current searchQuery from usePropertyFilters:", searchQuery);
+
   const [userWishlist, setUserWishlist] = useState<WishListResponse[]>([]);
   const [loadingWishlist, setLoadingWishlist] = useState(true);
 
-  // Fetch user wishlist on component mount or when user authentication changes
-  // <--- UPDATED useEffect for wishlist fetching
   useEffect(() => {
+    console.log("PropertiesPage: Wishlist useEffect triggered. Dependencies: isAuthenticated=", isAuthenticated, "isUserLoading=", isUserLoading);
     const fetchUserWishlist = async () => {
       setLoadingWishlist(true);
+      console.log("PropertiesPage: Starting fetchUserWishlist function.");
       try {
-        // Only fetch wishlist if user is authenticated and not loading
         if (isAuthenticated && !isUserLoading) {
+          console.log("PropertiesPage: User is authenticated and user data is loaded. Attempting to fetch wishlist.");
           const wishlist = await getUserWishlist();
           if (wishlist) {
+            console.log("PropertiesPage: Wishlist fetched successfully. Count:", wishlist.length, "Data:", wishlist);
             setUserWishlist(wishlist);
+          } else {
+            console.log("PropertiesPage: Wishlist API returned null or undefined. Setting empty wishlist.");
+            setUserWishlist([]);
           }
         } else if (!isAuthenticated && !isUserLoading) {
-          // If not authenticated, clear the wishlist to reflect no user
+          console.log("PropertiesPage: User is NOT authenticated and user data is loaded. Clearing wishlist.");
           setUserWishlist([]);
+        } else {
+          console.log("PropertiesPage: User authentication state not settled yet (isUserLoading is true). Deferring wishlist fetch.");
         }
       } catch (error) {
-        console.error("Failed to fetch user wishlist:", error);
-        // Optionally clear wishlist on error
+        console.error("PropertiesPage: Failed to fetch user wishlist:", error);
         setUserWishlist([]);
       } finally {
         setLoadingWishlist(false);
+        console.log("PropertiesPage: fetchUserWishlist function finished. loadingWishlist set to false.");
       }
     };
 
-    // Only run this effect if user loading state has settled
     if (!isUserLoading) {
       fetchUserWishlist();
+    } else {
+      console.log("PropertiesPage: isUserLoading is true. Skipping fetchUserWishlist for now.");
     }
-  }, [isAuthenticated, isUserLoading]); // Depend on isAuthenticated and isUserLoading
+  }, [isAuthenticated, isUserLoading]);
 
-  // Update wishlist state when a property's wishlist status changes
   const handleWishlistChange = (propertyId: string, isWishlisted: boolean) => {
+    console.log(`PropertiesPage: handleWishlistChange called for propertyId: ${propertyId}, isWishlisted: ${isWishlisted}`);
     setUserWishlist((prevWishlist) => {
       const propertyIdNum = parseInt(propertyId);
       if (isWishlisted) {
-        // Add to wishlist if not already there
         if (!prevWishlist.some(item => item.property_id === propertyIdNum)) {
-          // IMPORTANT: If your API returns the *actual* created wishlist item,
-          // it's better to refetch or use that data to ensure consistency.
-          // For optimistic UI, this is a decent temporary solution.
+          console.log(`PropertiesPage: Adding property ${propertyIdNum} to wishlist state (optimistic update).`);
           return [
             ...prevWishlist,
             {
               id: Date.now(), // Temporary ID for client-side state, ideally from API
               property_id: propertyIdNum,
-              user_id: user?.user_id || 0, // <--- Use actual user ID if available
+              user_id: user?.user_id || 0, // Use actual user ID if available
               added_at: new Date().toISOString(),
             } as WishListResponse,
           ];
+        } else {
+          console.log(`PropertiesPage: Property ${propertyIdNum} already in wishlist state. No change.`);
         }
       } else {
-        // Remove from wishlist
+        console.log(`PropertiesPage: Removing property ${propertyIdNum} from wishlist state.`);
         return prevWishlist.filter((item) => item.property_id !== propertyIdNum);
       }
-      return prevWishlist; // No change needed
+      return prevWishlist;
     });
   };
 
-  useEffect(() => {
-    console.log(
-      "PropertiesPage: Initializing filters from URL searchParams:",
-      searchParams.toString()
-    );
-
-    const initialFilters: { [key: string]: string | undefined } = {};
-    let initialSearchQuery = "";
-    let initialSortBy = "";
-    let initialSortOrder = "";
-
-    searchParams.forEach((value, key) => {
-      if (key === "keyword") {
-        initialSearchQuery = value;
-      } else if (key === "sort_by") {
-        initialSortBy = value;
-      } else if (key === "sort_order") {
-        initialSortOrder = value;
-      } else {
-        initialFilters[key] = value;
-      }
-    });
-
-    setSearchQuery(initialSearchQuery);
-    for (const key in initialFilters) {
-      if (initialFilters[key]) {
-        handleFilterChange(
-          key as keyof typeof filters,
-          initialFilters[key] as string
-        );
-      }
-    }
-    if (initialSortBy && initialSortOrder) {
-      handleSortChange(initialSortBy, initialSortOrder);
-    }
-
-    console.log("PropertiesPage: Filters initialized to:", {
-      initialSearchQuery,
-      initialFilters,
-      initialSortBy,
-      initialSortOrder,
-    });
-  }, [searchParams]);
-
   const [offset, setOffset] = useState(0);
+  console.log("PropertiesPage: Current offset state:", offset);
 
   const { isLoading, error, properties, total } = usePropertyData(
     searchQuery,
@@ -155,7 +120,15 @@ export default function PropertiesPage() {
     false
   );
 
+  console.log("PropertiesPage: Data from usePropertyData hook received:", {
+    isLoading,
+    error,
+    propertiesCount: properties.length,
+    total,
+  });
+
   const handleSearch = () => {
+    console.log("PropertiesPage: handleSearch function called.");
     const queryParams = new URLSearchParams({
       keyword: searchQuery || "",
       ...(filters.city_id && { city_id: filters.city_id }),
@@ -167,23 +140,28 @@ export default function PropertiesPage() {
     }).toString();
 
     console.log(
-      "PropertiesPage: Search submitted, navigating with params:",
+      "PropertiesPage: Constructing new URL for search. Params:",
       queryParams
     );
     setOffset(0);
+    console.log("PropertiesPage: Resetting offset to 0 for new search.");
     router.push(`/user/rent?${queryParams}`);
+    console.log(`PropertiesPage: Navigating to /user/rent?${queryParams}`);
   };
 
   const getPageTitle = () => {
+    let title = "Search Results";
     if (filters.category_id) {
       const category = propertyCategories.find(
         (c) => c.id.toString() === filters.category_id
       );
-      return category ? `${category.name}s` : "Search Results";
+      title = category ? `${category.name}s` : "Search Results";
     }
-    return "Search Results";
+    console.log("PropertiesPage: Generated page title:", title);
+    return title;
   };
 
+  console.log("PropertiesPage: Rendering JSX content based on data status.");
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       <Header userType="user" />
@@ -193,7 +171,7 @@ export default function PropertiesPage() {
             {getPageTitle()}
           </h1>
           <p className="text-gray-600">
-            {isLoading || loadingWishlist || isUserLoading // <--- Added isUserLoading to overall loading check
+            {isLoading || loadingWishlist || isUserLoading
               ? "Loading properties..."
               : error
               ? `Error loading properties: ${error}`
@@ -210,11 +188,11 @@ export default function PropertiesPage() {
           handleFilterChange={handleFilterChange}
           handleSortChange={handleSortChange}
           clearFilters={() => {
-            console.log("PropertiesPage: Clearing filters");
-            clearFilters();
-            setSearchQuery("");
+            console.log("PropertiesPage: Clear Filters button clicked. Clearing all filters and navigating.");
+            clearFilters(); // This now calls the clearFilters from the hook which resets its internal state.
+            // The hook also implicitly sets searchQuery to ""
             setOffset(0);
-            router.push("/user/rent");
+            router.push("/user/rent"); // Navigate to clear URL params
           }}
           getSelectedLocationText={() => getSelectedLocationText() ?? ""}
           getSelectedPropertyCategoryText={() =>
@@ -243,7 +221,7 @@ export default function PropertiesPage() {
             <div className="hidden md:flex items-center gap-2 text-sm text-gray-600">
               <span>Sort by:</span>
               <button
-                onClick={() => handleSortChange("rent_price", "asc")}
+                onClick={() => { console.log("PropertiesPage: Sort by Price ↑ clicked."); handleSortChange("rent_price", "asc"); }}
                 className={`px-3 py-1 rounded-md transition-colors ${
                   filters.sort_by === "rent_price" &&
                   filters.sort_order === "asc"
@@ -254,7 +232,7 @@ export default function PropertiesPage() {
                 Price ↑
               </button>
               <button
-                onClick={() => handleSortChange("rent_price", "desc")}
+                onClick={() => { console.log("PropertiesPage: Sort by Price ↓ clicked."); handleSortChange("rent_price", "desc"); }}
                 className={`px-3 py-1 rounded-md transition-colors ${
                   filters.sort_by === "rent_price" &&
                   filters.sort_order === "desc"
@@ -265,7 +243,7 @@ export default function PropertiesPage() {
                 Price ↓
               </button>
               <button
-                onClick={() => handleSortChange("listed_at", "desc")}
+                onClick={() => { console.log("PropertiesPage: Sort by Newest clicked."); handleSortChange("listed_at", "desc"); }}
                 className={`px-3 py-1 rounded-md transition-colors ${
                   filters.sort_by === "listed_at" &&
                   filters.sort_order === "desc"
@@ -278,7 +256,7 @@ export default function PropertiesPage() {
             </div>
           </div>
 
-          {isLoading || loadingWishlist || isUserLoading ? ( // Show loading for all relevant data
+          {isLoading || loadingWishlist || isUserLoading ? (
             <div className="flex flex-col justify-center items-center py-20">
               <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-500 mb-4" />
               <p className="text-gray-600 text-lg">Loading properties...</p>
@@ -293,9 +271,8 @@ export default function PropertiesPage() {
               </p>
               <button
                 onClick={() => {
-                  console.log("PropertiesPage: Clearing filters on error");
-                  setSearchQuery("");
-                  clearFilters();
+                  console.log("PropertiesPage: Clear All Filters on error button clicked.");
+                  clearFilters(); // Use the clearFilters from the hook
                   setOffset(0);
                   router.push("/user/rent");
                 }}
@@ -307,28 +284,31 @@ export default function PropertiesPage() {
           ) : properties.length > 0 ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {properties.map((property) => (
-                  <PropertyCard
-                    key={property.id}
-                    property={property}
-                    // Determine if the property is in the user's wishlist
-                    initialIsWishlisted={userWishlist.some(
-                      (item) => item.property_id === parseInt(property.id)
-                    )}
-                    onWishlistChange={handleWishlistChange} // Pass the callback
-                    // <--- Pass authentication status to PropertyCard
-                    isUserAuthenticated={isAuthenticated}
-                    isUserLoading={isUserLoading}
-                  />
-                ))}
+                {properties.map((property) => {
+                  const isPropertyWishlisted = userWishlist.some(
+                    (item) => item.property_id === parseInt(property.id)
+                  );
+                  console.log(`PropertiesPage: Rendering PropertyCard for ID: ${property.id}`);
+                  console.log(`PropertiesPage:   Property ID ${property.id} image_url: ${property.image}`);
+                  console.log(`PropertiesPage:   Property ID ${property.id} initialIsWishlisted: ${isPropertyWishlisted}`);
+                  return (
+                    <PropertyCard
+                      key={property.id}
+                      property={property}
+                      initialIsWishlisted={isPropertyWishlisted}
+                      onWishlistChange={handleWishlistChange}
+                      isUserAuthenticated={isAuthenticated}
+                      isUserLoading={isUserLoading}
+                    />
+                  );
+                })}
               </div>
               {properties.length < total && (
                 <div className="flex justify-center mt-12">
                   <button
                     onClick={() => {
                       console.log(
-                        "PropertiesPage: Loading more properties, new offset:",
-                        offset + 50
+                        "PropertiesPage: Load More Properties button clicked. Incrementing offset from", offset, "to", offset + 50
                       );
                       setOffset((prev) => prev + 50);
                     }}
@@ -369,11 +349,8 @@ export default function PropertiesPage() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button
                   onClick={() => {
-                    console.log(
-                      "PropertiesPage: Clearing filters on no properties"
-                    );
-                    setSearchQuery("");
-                    clearFilters();
+                    console.log("PropertiesPage: Clear All Filters on no properties button clicked.");
+                    clearFilters(); // Use the clearFilters from the hook
                     setOffset(0);
                     router.push("/user/rent");
                   }}
@@ -383,7 +360,7 @@ export default function PropertiesPage() {
                 </button>
                 <button
                   onClick={() => {
-                    console.log("PropertiesPage: Navigating back to home");
+                    console.log("PropertiesPage: Back to Home button clicked (from no properties).");
                     router.push("/user");
                   }}
                   className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-6 py-2 rounded-lg transition-colors"

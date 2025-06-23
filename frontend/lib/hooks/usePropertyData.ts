@@ -1,5 +1,4 @@
-// lib/hooks/usePropertyData.ts
-import { useState, useEffect, useRef } from "react"; // Add useRef
+import { useState, useEffect, useRef } from "react";
 import { fetchProperties } from "@/lib/utils/api";
 import {
   mapApiPropertyToPropertyWithImage,
@@ -20,53 +19,52 @@ export function usePropertyData(
   filters: Filters,
   offset = 0,
   limit = 50,
-  // Add a new parameter `skipInitialFetch` for better control on home page
-  // It allows `usePropertyData` to be defined but not fetch until `propertyCategories` are ready.
-  skipInitialFetch = false // Default to false, allowing immediate fetch unless explicitly told to skip
+  skipInitialFetch = false
 ) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [properties, setProperties] = useState<PropertyWithImage[]>([]);
   const [total, setTotal] = useState(0);
 
-  // Use a ref to keep track of the last fetched parameters to prevent infinite loops
   const lastFetchedParams = useRef<string | null>(null);
 
+  console.log("usePropertyData: Hook initialized with:", { searchQuery, filters, offset, limit, skipInitialFetch });
+
   useEffect(() => {
-    // If skipInitialFetch is true and filters (specifically category_id for home page) are not yet defined,
-    // prevent the initial fetch. This is useful for sections that depend on dynamically loaded filter values.
+    console.log("usePropertyData: useEffect triggered.");
+
     if (
       skipInitialFetch &&
       filters.category_id === undefined &&
       filters.sort_by === undefined
     ) {
       console.log(
-        "usePropertyData: Skipping initial fetch due to missing dynamic filters."
+        "usePropertyData: Skipping initial fetch due to `skipInitialFetch` being true and missing dynamic filters."
       );
-      setIsLoading(false); // Ensure loading state is false if skipped
+      setIsLoading(false);
       return;
     }
 
     const fetchData = async () => {
-      // Create a unique key for the current set of parameters
       const currentParamsKey = JSON.stringify({
         searchQuery,
         filters,
         offset,
         limit,
       });
+      console.log("usePropertyData: Current params key for fetch:", currentParamsKey);
 
-      // If these parameters were the last ones successfully fetched, skip the fetch
       if (lastFetchedParams.current === currentParamsKey) {
         console.log(
-          "usePropertyData: Skipping fetch, params are identical to last successful fetch."
+          "usePropertyData: Skipping fetch. Parameters are identical to last successful fetch."
         );
-        setIsLoading(false); // Ensure loading is off if we're skipping
+        setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
-      setError(null); // Clear previous errors
+      setError(null);
+      console.log("usePropertyData: Starting fetch operation...");
 
       try {
         const rawQueryParams = {
@@ -81,7 +79,6 @@ export function usePropertyData(
           limit: limit.toString(),
         };
 
-        // Filter out undefined, null, or empty string values from queryParams
         const queryParams = Object.fromEntries(
           Object.entries(rawQueryParams).filter(
             ([_, v]) => v !== undefined && v !== null && v !== ""
@@ -89,21 +86,17 @@ export function usePropertyData(
         );
 
         console.log(
-          "usePropertyData: Fetching properties with params:",
-          queryParams,
-          { searchQuery, filters, offset, limit }
+          "usePropertyData: Prepared query parameters for API call:",
+          queryParams
         );
 
         const data = await fetchProperties(queryParams);
 
-        console.log("usePropertyData: API response data:", {
-          properties: data.properties,
-          total: data.total,
-        });
+        console.log("usePropertyData: API response data received (raw):", data);
 
         if (!Array.isArray(data.properties)) {
           console.error(
-            "usePropertyData: Invalid properties array received:",
+            "usePropertyData: Invalid API response: 'properties' is not an array.",
             data
           );
           throw new Error(
@@ -114,10 +107,12 @@ export function usePropertyData(
         const mappedProperties = data.properties
           .map((item) => {
             try {
-              return mapApiPropertyToPropertyWithImage(item);
+              const mapped = mapApiPropertyToPropertyWithImage(item);
+              console.log(`usePropertyData: Successfully mapped property ID ${item.property_id}. Image URL: ${mapped?.image}`);
+              return mapped;
             } catch (err) {
               console.error(
-                "usePropertyData: Mapping error for item:",
+                "usePropertyData: Mapping error for item (this item will be skipped):",
                 err,
                 item
               );
@@ -126,46 +121,43 @@ export function usePropertyData(
           })
           .filter((p): p is PropertyWithImage => p !== null);
 
-        console.log("usePropertyData: Mapped properties (count and data):", {
-          count: mappedProperties.length,
-          properties: mappedProperties,
+        console.log("usePropertyData: Mapped properties (filtered, count:", mappedProperties.length, "first 5 images:", mappedProperties.slice(0,5).map(p => p.image));
+
+        setProperties((prev) => {
+          const newProperties = offset === 0 ? mappedProperties : [...prev, ...mappedProperties];
+          console.log("usePropertyData: Setting properties state. Total properties after update:", newProperties.length);
+          return newProperties;
         });
-
-        // For offset 0, replace properties; otherwise, append
-        setProperties((prev) =>
-          offset === 0 ? mappedProperties : [...prev, ...mappedProperties]
-        );
         setTotal(data.total || 0);
+        console.log("usePropertyData: Total properties set to:", data.total || 0);
 
-        // Update the ref only after a successful fetch
         lastFetchedParams.current = currentParamsKey;
+        console.log("usePropertyData: lastFetchedParams updated to:", currentParamsKey);
       } catch (err) {
         console.error("usePropertyData: Error fetching properties:", err);
         setError(
           "Failed to fetch properties: " +
             (err instanceof Error ? err.message : String(err))
         );
-        setProperties([]); // Clear properties on error
-        setTotal(0); // Reset total on error
+        setProperties([]);
+        setTotal(0);
         lastFetchedParams.current = null; // Clear ref on error to allow re-attempt
       } finally {
         setIsLoading(false);
+        console.log("usePropertyData: Fetch operation finished. isLoading set to false.");
       }
     };
 
-    // Use a short timeout to allow React's batched updates to complete
-    // and prevent immediate re-runs if state updates trigger re-renders.
-    // This is a common pattern for "debouncing" effect runs.
-    const timer = setTimeout(fetchData, 0);
+    const timer = setTimeout(fetchData, 0); // Still using setTimeout for debouncing
 
     return () => {
+      console.log("usePropertyData: useEffect cleanup triggered. Clearing timer and setting isLoading to false.");
       clearTimeout(timer);
-      // It's crucial to reset isLoading if component unmounts quickly or effect cleans up before fetch completes
       setIsLoading(false);
     };
-  }, [searchQuery, filters, offset, limit, skipInitialFetch]); // Add skipInitialFetch to dependencies
+  }, [searchQuery, filters, offset, limit, skipInitialFetch]);
 
-  console.log("usePropertyData: Returning state for component:", {
+  console.log("usePropertyData: Hook returning current state:", {
     isLoading,
     error,
     propertiesLength: properties.length,

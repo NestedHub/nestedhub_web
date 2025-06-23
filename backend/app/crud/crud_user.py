@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, List
 import secrets
-from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import Session, select
 from pydantic import EmailStr, ValidationError, validate_email
 from sqlalchemy import or_, func
@@ -516,44 +516,73 @@ def reset_password(
     try:
         validate_email(email)
     except ValidationError:
-        raise HTTPException(status_code=400, detail="Invalid email format")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input provided.")
 
     if not code or len(code) != 6 or not code.isalnum():
         raise HTTPException(
-            status_code=400, detail="Invalid reset code format")
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input provided.")
 
     if not new_password:
-        raise HTTPException(status_code=400, detail="New password is required")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input provided.")
 
     try:
         user = get_user_by_email(session=session, email=email)
         if not user:
-            raise HTTPException(
-                status_code=401, detail="Invalid or expired reset code")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or verification code.")
+        
         if user.oauth_provider != OAuthProvider.none:
             raise HTTPException(
-                status_code=400,
-                detail="Password reset not available for OAuth users"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password reset method not applicable for this account."
             )
 
         verification = session.exec(
             select(VerificationCodeDB).where(VerificationCodeDB.email == email)
         ).first()
-        if not verification or datetime.now(timezone.utc) > verification.expires_at or verification.code != code:
-            if verification and datetime.now(timezone.utc) > verification.expires_at:
+
+        if not verification:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or verification code.")
+        
+        current_utc_time = datetime.now(timezone.utc)
+        
+        expires_at_aware = verification.expires_at.replace(tzinfo=timezone.utc)
+        
+        if current_utc_time > expires_at_aware:
+            try:
                 session.delete(verification)
                 session.commit()
-            raise HTTPException(
-                status_code=401, detail="Invalid or expired reset code")
+            except SQLAlchemyError:
+                session.rollback()
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
+            except Exception:
+                session.rollback()
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
+            
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or verification code.")
 
-        user.hashed_password = get_password_hash(new_password)
-        session.add(user)
-        session.delete(verification)
-        session.commit()
-        return True
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail="Database error occurred")
+        if verification.code != code:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or verification code.")
+
+        try:
+            user.hashed_password = get_password_hash(new_password)
+            session.add(user)
+            session.delete(verification)
+            session.commit()
+            return True
+        except SQLAlchemyError:
+            session.rollback()
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
+        except Exception:
+            session.rollback()
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
+
+    except HTTPException:
+        raise
+    except Exception: # Removed 'as e' as you don't need 'e' for generic 500
+        if session.is_active:
+             session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
 
 
 def revoke_token(*, session: Session, token: str, expires_at: datetime) -> None:

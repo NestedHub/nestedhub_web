@@ -19,6 +19,105 @@ from typing import Optional, List
 
 logger = logging.getLogger(__name__)
 
+def get_user_properties(
+    *,
+    session: Session,
+    user_id: int
+) -> List[PropertyRead]:
+    """
+    Retrieve a list of properties owned by a specific user.
+    
+    Args:
+        session: SQLModel database session.
+        user_id: ID of the user whose properties are to be fetched.
+    
+    Returns:
+        List of PropertyRead objects representing the user's properties.
+    
+    Raises:
+        HTTPException: If the user is not found or a database error occurs.
+    """
+    try:
+        # Verify user exists
+        user = session.exec(select(User).where(User.user_id == user_id)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
+
+        # Query properties for the user
+        statement = (
+            select(Property)
+            .where(Property.user_id == user_id)
+            .options(
+                selectinload(Property.property_location),
+                selectinload(Property.pricing),
+                selectinload(Property.features),
+                selectinload(Property.property_medias),
+                selectinload(Property.property_category)
+            )
+        )
+
+        properties = session.exec(statement).all()
+        logger.debug("Found %d properties for user_id=%d", len(properties), user_id)
+
+        # Convert to PropertyRead objects
+        property_reads = []
+        for p in properties:
+            location = p.property_location
+            city = session.exec(select(City).where(
+                City.city_id == location.city_id)).first() if location else None
+            district = session.exec(select(District).where(
+                District.district_id == location.district_id)).first() if location else None
+            commune = session.exec(select(Commune).where(
+                Commune.commune_id == location.commune_id)).first() if location else None
+
+            location_read = None
+            if location:
+                location_read = PropertyLocationRead(
+                    location_id=location.location_id,
+                    property_id=location.property_id,
+                    city_id=location.city_id,
+                    district_id=location.district_id,
+                    commune_id=location.commune_id,
+                    street_number=location.street_number,
+                    latitude=location.latitude,
+                    longitude=location.longitude,
+                    city_name=city.city_name if city else "Unknown",
+                    district_name=district.district_name if district else "Unknown",
+                    commune_name=commune.commune_name if commune else "Unknown"
+                )
+
+            property_read = PropertyRead(
+                property_id=p.property_id,
+                title=p.title,
+                description=p.description,
+                bedrooms=p.bedrooms,
+                bathrooms=p.bathrooms,
+                land_area=p.land_area,
+                floor_area=p.floor_area,
+                status=p.status,
+                updated_at=p.updated_at,
+                listed_at=p.listed_at,
+                user_id=p.user_id,
+                category_name=p.property_category.category_name if p.property_category else None,
+                rating=p.rating,
+                pricing=PropertyPricingRead.model_validate(
+                    p.pricing) if p.pricing else None,
+                location=location_read,
+                media=[PropertyMediaRead.model_validate(
+                    m) for m in p.property_medias] if p.property_medias else [],
+                features=[FeatureRead.model_validate(
+                    f) for f in p.features] if p.features else []
+            )
+            property_reads.append(property_read)
+
+        return property_reads
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching properties for user_id={user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 def get_related_properties(
     *,

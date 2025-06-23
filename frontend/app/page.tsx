@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation"
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  redirect("/user")
- 
-  return null
+  redirect("/user");
+
+  return null;
 }

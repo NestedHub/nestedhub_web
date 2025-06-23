@@ -1,4 +1,5 @@
 // lib/utils/user-api.ts
+// Updated: June 21, 2025
 
 import {
   UserResponse,
@@ -16,7 +17,21 @@ import {
   UserRole,
 } from "@/lib/user"; // Adjust path as needed
 
-const BASE_URL = "http://localhost:8000/api"; // Your API Base URL
+// IMPORTANT: Ensure this matches your FastAPI backend's base URL.
+// Use environment variables for production (e.g., process.env.NEXT_PUBLIC_API_BASE_URL)
+let baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+if (!baseUrl.endsWith("/api")) {
+  baseUrl = `${baseUrl.replace(/\/+$/, "")}/api`;
+}
+
+const BASE_URL = baseUrl;
+
+// Cloudinary Configuration (Publicly accessible keys for direct unsigned upload)
+// IMPORTANT: CLOUDINARY_API_SECRET MUST NOT BE EXPOSED ON THE CLIENT-SIDE.
+// For production, use signed uploads where a backend generates a signature.
+const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_API_KEY = process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY;
 
 // --- Token Management Helpers (for client-side storage) ---
 // IMPORTANT: For production, consider using HttpOnly cookies for JWTs for better security.
@@ -51,7 +66,6 @@ export function clearTokens() {
 }
 
 // --- Generic Fetch Helper for Authenticated Requests ---
-// ADDED 'export' KEYWORD HERE TO FIX THE ERROR
 export async function fetchAuthenticated<T>(
   endpoint: string,
   method: string,
@@ -60,11 +74,8 @@ export async function fetchAuthenticated<T>(
 ): Promise<T> {
   const token = getAccessToken();
   if (!token) {
-    // If no token, and it's an authenticated endpoint, redirect or throw
-    // For a robust app, dispatch a global logout or redirect to login.
     console.error("Authentication token is missing for authenticated request.");
-    clearTokens(); // Clear any potentially stale tokens
-    // Consider adding a redirect to login page here or letting the calling hook handle it
+    clearTokens(); // Ensure any stale tokens are removed
     throw new Error("Authentication required: No token found.");
   }
 
@@ -76,75 +87,32 @@ export async function fetchAuthenticated<T>(
     headers["Content-Type"] = "application/json";
   }
 
-  const options: RequestInit = {
-    method,
-    headers,
-    body: isFormData ? (body as URLSearchParams) : JSON.stringify(body),
-  };
+  let finalEndpoint = `${BASE_URL}${endpoint}`;
+  let finalBody: BodyInit | undefined = isFormData ? (body as URLSearchParams) : JSON.stringify(body);
 
   if (method === "GET" && body) {
     const queryParams = new URLSearchParams(
       body as Record<string, any>
     ).toString();
-    endpoint = `${endpoint}?${queryParams}`;
-    delete options.body; // GET requests should not have a body
+    finalEndpoint = `${finalEndpoint}?${queryParams}`;
+    finalBody = undefined; // GET requests should not have a body
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, options);
+  const options: RequestInit = {
+    method,
+    headers,
+    body: finalBody,
+  };
+
+  const response = await fetch(finalEndpoint, options);
 
   if (response.status === 401 || response.status === 403) {
     console.error(
-      `Authentication error: ${response.status} - ${response.statusText}`
+      `Authentication error: ${response.status} - ${response.statusText}. Attempting to re-authenticate.`
     );
-    clearTokens(); // Clear tokens on auth failure
+    clearTokens(); // Clear tokens on unauthorized/forbidden to force re-login
     throw new Error("Unauthorized or Forbidden. Please re-authenticate.");
   }
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({})); // Attempt to parse JSON error, fallback to empty
-    const errorMessage =
-      errorData.detail ||
-      errorData.message ||
-      `API error: ${response.status} - ${response.statusText}`;
-    throw new Error(errorMessage);
-  }
-
-  // Handle 204 No Content responses (e.g., DELETE operations)
-  if (response.status === 204) {
-    return null as T; // Explicitly return null for no content
-  }
-
-  return response.json() as Promise<T>;
-}
-
-// --- Generic Fetch Helper for Unauthenticated Requests ---
-export async function fetchUnauthenticated<T>( // Keep this exported as it might be used
-  endpoint: string,
-  method: string,
-  body?: object | URLSearchParams,
-  isFormData: boolean = false
-): Promise<T> {
-  const headers: HeadersInit = {};
-
-  if (!isFormData) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  const options: RequestInit = {
-    method,
-    headers,
-    body: isFormData ? (body as URLSearchParams) : JSON.stringify(body),
-  };
-
-  if (method === "GET" && body) {
-    const queryParams = new URLSearchParams(
-      body as Record<string, any>
-    ).toString();
-    endpoint = `${endpoint}?${queryParams}`;
-    delete options.body; // GET requests should not have a body
-  }
-
-  const response = await fetch(`${BASE_URL}${endpoint}`, options);
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -156,22 +124,106 @@ export async function fetchUnauthenticated<T>( // Keep this exported as it might
   }
 
   if (response.status === 204) {
-    return null as T;
+    return null as T; // No content for 204
   }
 
   return response.json() as Promise<T>;
 }
 
+// --- Generic Fetch Helper for Unauthenticated Requests ---
+export async function fetchUnauthenticated<T>(
+  endpoint: string,
+  method: string,
+  body?: object | URLSearchParams,
+  isFormData: boolean = false
+): Promise<T> {
+  const headers: HeadersInit = {};
+
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  let finalEndpoint = `${BASE_URL}${endpoint}`;
+  let finalBody: BodyInit | undefined = isFormData ? (body as URLSearchParams) : JSON.stringify(body);
+
+  if (method === "GET" && body) {
+    const queryParams = new URLSearchParams(
+      body as Record<string, any>
+    ).toString();
+    finalEndpoint = `${finalEndpoint}?${queryParams}`;
+    finalBody = undefined; // GET requests should not have a body
+  }
+
+  const options: RequestInit = {
+    method,
+    headers,
+    body: finalBody,
+  };
+
+  const response = await fetch(finalEndpoint, options);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage =
+      errorData.detail ||
+      errorData.message ||
+      `API error: ${response.status} - ${response.statusText}`;
+    throw new Error(errorMessage);
+  }
+
+  if (response.status === 204) {
+    return null as T; // No content for 204
+  }
+
+  return response.json() as Promise<T>;
+}
+
+// --- File Upload Helper (Cloudinary) ---
+/**
+ * Uploads a file to Cloudinary.
+ * IMPORTANT: This uses direct unsigned upload. For production, consider using
+ * signed uploads where a backend generates a secure signature.
+ * @param file The file to upload.
+ * @returns The secure URL of the uploaded file.
+ */
+export async function uploadFileToCloudinary(file: File): Promise<string> {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY) {
+    throw new Error("Cloudinary environment variables are not set.");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", "your_upload_preset"); // <<< IMPORTANT: Replace with your Cloudinary upload preset
+  formData.append("api_key", CLOUDINARY_API_KEY);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      errorData.error?.message || `Cloudinary upload failed: ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  return data.secure_url;
+}
+
+
 // --- API Functions ---
 
-// 1. Search Users (Admin Only)
 export async function searchUsers(
   params: SearchUsersParams
 ): Promise<UserResponse[]> {
   return fetchAuthenticated<UserResponse[]>("/users/search", "GET", params);
 }
 
-// 2. Google Login
 export async function googleLogin(): Promise<GoogleAuthUrlResponse> {
   return fetchUnauthenticated<GoogleAuthUrlResponse>(
     "/users/google/login",
@@ -179,16 +231,14 @@ export async function googleLogin(): Promise<GoogleAuthUrlResponse> {
   );
 }
 
-// 3. Google OAuth2 Callback
-export async function googleCallback(code: string): Promise<TokenResponse> {
-  const params = new URLSearchParams({ code });
-  return fetchUnauthenticated<TokenResponse>(
-    `/users/google/callback?${params.toString()}`,
-    "GET"
-  );
-}
+// !!! IMPORTANT: The googleCallback function is REMOVED from the frontend
+// !!! It is now handled entirely by your backend.
+// export async function googleCallback(code: string): Promise<TokenResponse> {
+//   // This function is no longer called by the frontend for Google OAuth.
+//   // Your backend directly receives the 'code' and redirects with tokens.
+//   throw new Error("Frontend googleCallback(code) is deprecated. Backend handles code exchange.");
+// }
 
-// 4. Register User
 export async function registerUser(
   userData: UserCreate
 ): Promise<UserResponse> {
@@ -199,7 +249,6 @@ export async function registerUser(
   );
 }
 
-// 5. Login User
 export async function loginUser(
   email: string,
   password: string
@@ -211,11 +260,10 @@ export async function loginUser(
     "/users/login",
     "POST",
     formData,
-    true
+    true // Indicate formData
   );
 }
 
-// 6. Verify Email
 export async function verifyEmail(
   data: VerifyEmailRequest
 ): Promise<TokenResponse> {
@@ -226,7 +274,6 @@ export async function verifyEmail(
   );
 }
 
-// 7. Request Password Reset
 export async function requestPasswordReset(
   data: PasswordResetRequest
 ): Promise<SuccessMessageResponse> {
@@ -237,7 +284,6 @@ export async function requestPasswordReset(
   );
 }
 
-// 8. Confirm Password Reset
 export async function confirmPasswordReset(
   data: PasswordResetConfirm
 ): Promise<SuccessMessageResponse> {
@@ -248,7 +294,6 @@ export async function confirmPasswordReset(
   );
 }
 
-// 9. Revoke Token (Authenticated)
 export async function revokeToken(
   data: TokenRevokeRequest
 ): Promise<SuccessMessageResponse> {
@@ -259,22 +304,18 @@ export async function revokeToken(
   );
 }
 
-// 10. Get Current User Info (Authenticated)
 export async function getCurrentUser(): Promise<UserResponse> {
   return fetchAuthenticated<UserResponse>("/users/me", "GET");
 }
 
-// 11. Get User by ID (Authenticated - Admin or self)
 export async function getUserById(userId: number): Promise<UserResponse> {
   return fetchAuthenticated<UserResponse>(`/users/${userId}`, "GET");
 }
 
-// 12. Approve User (Admin Only)
 export async function approveUser(userId: number): Promise<UserResponse> {
   return fetchAuthenticated<UserResponse>(`/users/${userId}/approve`, "PATCH");
 }
 
-// 13. Reject Property Owner (Admin Only)
 export async function rejectPropertyOwner(
   userId: number
 ): Promise<SuccessMessageResponse> {
@@ -284,12 +325,10 @@ export async function rejectPropertyOwner(
   );
 }
 
-// 14. Get Pending Approvals (Admin Only)
 export async function getPendingApprovals(): Promise<UserResponse[]> {
   return fetchAuthenticated<UserResponse[]>("/users/pending-approvals", "GET");
 }
 
-// 15. Update User (Authenticated - Admin or self)
 export async function updateUser(
   userId: number,
   userData: UserUpdate
@@ -297,14 +336,12 @@ export async function updateUser(
   return fetchAuthenticated<UserResponse>(`/users/${userId}`, "PUT", userData);
 }
 
-// 16. List Users (Admin Only)
 export async function listUsers(
   params: ListUsersParams = {}
 ): Promise<UserResponse[]> {
   return fetchAuthenticated<UserResponse[]>("/users/", "GET", params);
 }
 
-// 17. Delete User (Admin Only - Soft or Hard Delete)
 export async function deleteUser(
   userId: number,
   hard_delete: boolean = false
@@ -316,7 +353,6 @@ export async function deleteUser(
   );
 }
 
-// 18. Ban/Unban User (Admin Only)
 export async function banUnbanUser(
   userId: number,
   ban: boolean = true

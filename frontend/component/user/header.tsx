@@ -3,7 +3,15 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronDown, Heart, Menu, User, Loader2, X, CalendarCheck } from "lucide-react"; // Import CalendarCheck icon
+import {
+  ChevronDown,
+  Heart,
+  Menu,
+  User,
+  Loader2,
+  X,
+  CalendarCheck,
+} from "lucide-react"; // Import CalendarCheck icon
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useWishlist } from "@/lib/hooks/usewishlist";
 import { useUser } from "@/lib/hooks/useUser";
@@ -23,7 +31,8 @@ export default function Header({ userType = "user" }: HeaderProps) {
   const router = useRouter();
 
   // Use the useUserViewingRequests hook to get viewing requests
-  const { data: userViewingRequests, loading: loadingViewingRequests } = useUserViewingRequests();
+  const { data: userViewingRequests, loading: loadingViewingRequests } =
+    useUserViewingRequests();
 
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -93,7 +102,9 @@ export default function Header({ userType = "user" }: HeaderProps) {
   // Calculate the number of pending viewing requests
   const pendingRequestsCount = useMemo(() => {
     if (userViewingRequests && !loadingViewingRequests) {
-      return userViewingRequests.filter(request => request.status === 'pending').length;
+      return userViewingRequests.filter(
+        (request) => request.status === "pending"
+      ).length;
     }
     return 0;
   }, [userViewingRequests, loadingViewingRequests]);
@@ -102,7 +113,7 @@ export default function Header({ userType = "user" }: HeaderProps) {
     <header
       className={`bg-gradient-to-r from-green-700 to-green-800 text-white shadow-lg sticky top-0 z-50 transition-transform duration-300 ${
         isVisible ? "translate-y-0" : "-translate-y-full"
-      } h-16 flex items-center`}
+      } h-20 flex items-center`}
     >
       <div className="container mx-auto px-4 py-0 flex items-center justify-between h-full">
         {/* Logo */}
@@ -110,9 +121,9 @@ export default function Header({ userType = "user" }: HeaderProps) {
           <Image
             src="/logowhite.png"
             alt="NestedHub Logo"
-            width={240}
-            height={80}
-            className="w-auto h-10 object-contain"
+            width={560} // Increased width
+            height={180} // Increased height
+            className="w-auto h-12 object-contain" // Adjusted height for image
           />
         </Link>
 
@@ -211,7 +222,7 @@ export default function Header({ userType = "user" }: HeaderProps) {
             </div>
           ) : isAuthenticated && user ? (
             <Link
-              href="/user/profile"
+              href="/user/profile/me"
               className="flex items-center space-x-2 group p-1 pr-3 rounded-full hover:bg-green-600 transition-colors duration-200"
             >
               <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white group-hover:border-green-200 transition-colors duration-200 flex items-center justify-center flex-shrink-0">
@@ -304,7 +315,7 @@ export default function Header({ userType = "user" }: HeaderProps) {
             {isAuthenticated && user ? (
               <>
                 <Link
-                  href="/user/profile"
+                  href="/user/profile/me"
                   className="flex items-center space-x-3 text-white hover:text-green-200 transition-colors duration-200 py-2"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >

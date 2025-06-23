@@ -15,7 +15,9 @@ import {
   addPropertyToWishlist,
   removePropertyFromWishlist,
 } from "@/lib/utils/wishlist-api";
-import { WishListResponse } from "@/lib/types";
+// Assuming WishListResponse is also updated to match API if necessary
+import { WishListResponse, } from "@/lib/types"; // Import Property and ApiPropertyMedia
+import { ApiPropertyMedia, Property } from "@/lib/properties-type"; // Import the API type for media
 
 import { usePropertyData } from "@/lib/hooks/usePropertyData";
 
@@ -37,7 +39,9 @@ export default function PropertyDetailPage() {
   const propertyIdAsNumber = propertyId ? parseInt(propertyId) : null;
 
   const { isAuthenticated, isLoading: isUserLoading } = useUser();
+  // 'property' will now be of type 'Property' which directly mirrors the API response
   const { property, isLoading, error } = useProperty(propertyId);
+  // Changed owner_id to user_id as per the API's 'Property' model
   const { user: owner } = useUserDetail(property?.user_id);
 
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -48,8 +52,8 @@ export default function PropertyDetailPage() {
 
   const relatedPropertyFilters = property
     ? {
-        // category_id: property.category_id?.toString(),
-        // city_id: property.location?.city_id?.toString(),
+        // category_id: property.category_id?.toString(), // Assuming category_id might be needed from property
+        // city_id: property.location?.city_id?.toString(), // Assuming city_id might be needed from property.location
       }
     : {};
 
@@ -62,11 +66,12 @@ export default function PropertyDetailPage() {
     relatedPropertyFilters,
     0,
     5,
-    !property
+    !property // Skip fetching related properties if main property data isn't available yet
   );
 
+  // Assuming relatedProperties from usePropertyData are also of type Property[]
   const filteredRelatedProperties = relatedProperties
-    .filter((p) => p.id !== propertyId)
+    .filter(p => Number(p.id) !== propertyIdAsNumber) // Ensure both are numbers for comparison
     .slice(0, 4);
 
   useEffect(() => {
@@ -176,12 +181,7 @@ export default function PropertyDetailPage() {
         <div className="lg:grid-cols-1 space-y-8">
           <PropertyImageGallery
             title={property.title}
-            media={property.media
-              .filter((item) => item.url !== null)
-              .map((item) => ({
-                ...item,
-                url: item.url as string,
-              }))}
+            media={property.media.filter((item: ApiPropertyMedia) => item.media_url !== null)}
           />
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-gray-900">
@@ -223,12 +223,15 @@ export default function PropertyDetailPage() {
           </div>
 
           <PropertyDetailsSection
-            property={property}
+            property={property} // property is now directly the API type
             owner={owner ?? undefined}
           />
           <PropertyDescription description={property.description} />
           <PropertyOverviewTable property={property} />
-          <PropertyFeaturesBadges features={property.features} />
+          <PropertyFeaturesBadges
+            // property.features is ApiPropertyFeature[], convert to string[] if PropertyFeaturesBadges expects it
+            features={property.features.map(feature => feature.feature_name)}
+          />
 
           <div className="mt-8">
             {isPropertyAvailable ? (
@@ -254,6 +257,7 @@ export default function PropertyDetailPage() {
           )}
         </div>
 
+        {/* Assuming RelatedPropertiesSection can handle `Property[]` directly or its own mapping */}
         <RelatedPropertiesSection
           properties={filteredRelatedProperties}
           isLoading={isLoadingRelated}
@@ -265,7 +269,7 @@ export default function PropertyDetailPage() {
 
       <Footer />
 
-      {isBookingModalOpen && isPropertyAvailable && ( // Only open modal if property is available
+      {isBookingModalOpen && isPropertyAvailable && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-100 opacity-100">
             <button
@@ -279,7 +283,6 @@ export default function PropertyDetailPage() {
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Book Your Stay
               </h2>
-              {/* Pass the property status to the BookingFormCard */}
               <BookingFormCard propertyId={String(property.property_id)} propertyStatus={property.status} />
             </div>
           </div>

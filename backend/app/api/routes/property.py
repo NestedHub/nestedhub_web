@@ -15,7 +15,8 @@ from app.crud.crud_property import (
     get_property_stats,
     get_recommended_properties,
     get_property_counts,
-    get_related_properties
+    get_related_properties,
+    get_user_properties
 )
 from app.models.models import User, PropertyCategory, City, District, Commune, Feature
 from app.models.property_schemas import (
@@ -39,6 +40,24 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/properties")
+
+@router.get("/user/{user_id}", response_model=List[PropertyRead])
+def get_user_properties_handler(
+    user_id: int,
+    session: Session = Depends(get_db_session)
+):
+    """
+    Get a list of properties owned by a specific user.
+    
+    Args:
+        user_id: ID of the user whose properties are to be fetched.
+        session: SQLModel database session.
+    
+    Returns:
+        List of PropertyRead objects.
+    """
+    logger.debug("Fetching properties for user_id=%d", user_id)
+    return get_user_properties(session=session, user_id=user_id)
 
 @router.get("/count", response_model=PropertyCountResponse)
 def get_property_counts_handler(
