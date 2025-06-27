@@ -28,7 +28,7 @@ export function PropertyLocationMap({ location }: PropertyLocationMapProps) {
       <h2 className="text-2xl font-bold mb-4 text-gray-800">Location & Nearby Places</h2>
 
       <div className="h-[400px] rounded-lg overflow-hidden border border-gray-200">
-        <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_Maps_API_KEY!}>
+        <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
           <GoogleMap
             mapContainerStyle={containerStyle}
             center={center}

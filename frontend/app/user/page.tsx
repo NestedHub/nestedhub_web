@@ -1,21 +1,119 @@
 // component/user/page.tsx
 "use client";
-import { Home, Building, DoorOpen } from "lucide-react";
+import { Home, Building, DoorOpen, Sparkles } from "lucide-react";
 import Header from "@/component/user/header";
 import Footer from "@/component/user/footer";
 import FilterSection from "@/component/user/FilterSection";
 import HeroSection from "@/component/user/HeroSection";
 import PropertySection from "@/component/property/propertySection";
+import { PropertyCardDisplayData } from "@/component/property/propertyCard";
 import { usePropertyFilters } from "@/lib/hooks/usePropertyFilters";
 import { usePropertyData } from "@/lib/hooks/usePropertyData";
+import { useRecommendedProperties } from "@/lib/hooks/useRecommendedProperties";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useEffect } from "react"; // Import useState, useEffect
-import { getUserWishlist } from "@/lib/utils/wishlist-api"; // Import wishlist API
-import { WishListResponse } from "@/lib/types"; // Assuming you have this type
-
+import { useMemo, useState, useEffect } from "react";
+import { getUserWishlist } from "@/lib/utils/wishlist-api";
+import { WishListResponse } from "@/lib/types";
+import { useAuthContext } from '@/lib/context/AuthContext'; // Import your AuthContext
 
 export default function UserHomePage() {
   const router = useRouter();
+  const { user: authUser, isAuthenticated: isUserAuthenticated, isLoading: isAuthLoading } = useAuthContext();
+
+  // Directly use authUser.user_id as the current user identifier
+  // It's a number as per UserResponse, so no parsing needed.
+  // It will be `null` if authUser is null.
+  const currentUserId = authUser?.user_id || null;
+
+  const [userWishlist, setUserWishlist] = useState<WishListResponse[]>([]);
+  const [loadingWishlist, setLoadingWishlist] = useState(true);
+
+  useEffect(() => {
+    // Only fetch wishlist if user is authenticated and we have a valid user_id
+    if (isUserAuthenticated && currentUserId !== null) {
+      const fetchUserWishlist = async () => {
+        setLoadingWishlist(true);
+        try {
+          // Assuming getUserWishlist already knows the current user from auth token.
+          // If it needs the user_id explicitly, pass it here:
+          // const wishlist = await getUserWishlist(currentUserId);
+          const wishlist = await getUserWishlist();
+          if (wishlist) {
+            // Ensure wishlist property_ids are numbers for consistency
+            setUserWishlist(wishlist.map(item => ({...item, property_id: Number(item.property_id)})));
+          }
+        } catch (error) {
+          console.error("Failed to fetch user wishlist:", error);
+        } finally {
+          setLoadingWishlist(false);
+        }
+      };
+      fetchUserWishlist();
+    } else if (!isUserAuthenticated && !isAuthLoading) {
+        // If user is not authenticated or auth is done loading and no user, clear wishlist
+        setUserWishlist([]);
+        setLoadingWishlist(false);
+    }
+  }, [isUserAuthenticated, currentUserId, isAuthLoading]);
+
+  const handleWishlistChange = (propertyId: string, isWishlisted: boolean) => {
+    setUserWishlist((prevWishlist) => {
+      const propertyIdNum = parseInt(propertyId);
+      if (isWishlisted) {
+        if (currentUserId === null) {
+            console.warn("Attempted to add to wishlist without a valid user ID.");
+            return prevWishlist; // Don't add if no user ID
+        }
+        if (!prevWishlist.some(item => item.property_id === propertyIdNum)) {
+          return [
+            ...prevWishlist,
+            {
+              id: Date.now(), // Client-side temp ID for the wishlist entry itself
+              property_id: propertyIdNum,
+              user_id: currentUserId, // Use the actual user_id from auth
+              added_at: new Date().toISOString(),
+            } as WishListResponse,
+          ];
+        }
+      } else {
+        return prevWishlist.filter((item) => item.property_id !== propertyIdNum);
+      }
+      return prevWishlist;
+    });
+  };
+
+  // Define propertyCategories and its type
+  type PropertyCategory = { id: number | string; name: string };
+  const [propertyCategories, setPropertyCategories] = useState<PropertyCategory[]>([]);
+
+  useEffect(() => {
+    // Replace this with your actual API call
+    setPropertyCategories([
+      { id: 1, name: "House" },
+      { id: 2, name: "Apartment" },
+      { id: 3, name: "Room" },
+    ]);
+  }, []);
+
+  const getCategoryIdByName = (name: string) => {
+    const category = propertyCategories.find((cat: PropertyCategory) => cat.name.toLowerCase() === name.toLowerCase());
+    if (!propertyCategories || propertyCategories.length === 0) {
+      return undefined;
+    }
+    return category?.id ? String(category.id) : undefined;
+  };
+
+  const memoizedCategoryIds = useMemo(() => {
+    return {
+      houseId: getCategoryIdByName("house"),
+      apartmentId: getCategoryIdByName("apartment"),
+      roomId: getCategoryIdByName("room"),
+    };
+  }, [propertyCategories]);
+
+  const { houseId, apartmentId, roomId } = memoizedCategoryIds;
+
+  // Use the property filters hook to get filters, searchQuery, and related handlers
   const {
     filters,
     searchQuery,
@@ -31,78 +129,9 @@ export default function UserHomePage() {
     cities,
     districts,
     communes,
-    propertyCategories,
   } = usePropertyFilters();
 
-  // State for user's wishlist
-  const [userWishlist, setUserWishlist] = useState<WishListResponse[]>([]);
-  const [loadingWishlist, setLoadingWishlist] = useState(true);
-
-  // Fetch user wishlist on component mount
-  useEffect(() => {
-    const fetchUserWishlist = async () => {
-      setLoadingWishlist(true);
-      try {
-        const wishlist = await getUserWishlist();
-        if (wishlist) {
-          setUserWishlist(wishlist);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user wishlist:", error);
-      } finally {
-        setLoadingWishlist(false);
-      }
-    };
-    fetchUserWishlist();
-  }, []);
-
-  // Update wishlist state when a property's wishlist status changes
-  const handleWishlistChange = (propertyId: string, isWishlisted: boolean) => {
-    setUserWishlist((prevWishlist) => {
-      const propertyIdNum = parseInt(propertyId);
-      if (isWishlisted) {
-        // Add to wishlist if not already there
-        if (!prevWishlist.some(item => item.property_id === propertyIdNum)) {
-          // You may need to adjust user_id and added_at as appropriate for your app
-          return [
-            ...prevWishlist,
-            {
-              id: Date.now(), // Temporary ID, replace with real one if needed
-              property_id: propertyIdNum,
-              user_id: 0, // Replace with actual user_id if available
-              added_at: new Date().toISOString(),
-            } as WishListResponse,
-          ];
-        }
-      } else {
-        // Remove from wishlist
-        return prevWishlist.filter((item) => item.property_id !== propertyIdNum);
-      }
-      return prevWishlist; // No change needed
-    });
-  };
-
-  // Helper to get category ID from its name
-  const getCategoryIdByName = (name: string) => {
-    const category = propertyCategories.find(cat => cat.name.toLowerCase() === name.toLowerCase());
-    if (!propertyCategories || propertyCategories.length === 0) {
-        return undefined;
-    }
-    return category?.id ? String(category.id) : undefined;
-  };
-
-  const memoizedCategoryIds = useMemo(() => {
-    return {
-      houseId: getCategoryIdByName("house"),
-      apartmentId: getCategoryIdByName("apartment"),
-      roomId: getCategoryIdByName("room"),
-    };
-  }, [propertyCategories]);
-
-  const { houseId, apartmentId, roomId } = memoizedCategoryIds;
-
-  // --- Fetching data for each section separately using usePropertyData ---
-
+  // --- Fetching data for each section separately ---
   const {
     properties: newListings,
     isLoading: isLoadingNewListings,
@@ -145,9 +174,32 @@ export default function UserHomePage() {
     !roomId
   );
 
+  // Fetching data for recommended properties using the new hook
+  const {
+    recommendedProperties,
+    isLoading: isLoadingRecommendedProperties,
+    error: errorRecommendedProperties,
+  } = useRecommendedProperties({
+    userId: currentUserId, // This will be null if user is not logged in or auth is loading
+    limit: 3,
+    skip: currentUserId === null || !isUserAuthenticated, // Skip if no user ID OR not authenticated
+  });
 
-  const overallIsLoading = isLoadingNewListings || isLoadingHouses || isLoadingApartments || isLoadingRooms || loadingWishlist; // Include loadingWishlist
-  const overallError = errorNewListings || errorHouses || errorApartments || errorRooms;
+  const overallIsLoading =
+    isLoadingNewListings ||
+    isLoadingHouses ||
+    isLoadingApartments ||
+    isLoadingRooms ||
+    isLoadingRecommendedProperties ||
+    loadingWishlist ||
+    isAuthLoading; // Include authentication loading state
+
+  const overallError =
+    errorNewListings ||
+    errorHouses ||
+    errorApartments ||
+    errorRooms ||
+    errorRecommendedProperties;
 
   const handleSearch = () => {
     const queryParams = new URLSearchParams({
@@ -203,14 +255,26 @@ export default function UserHomePage() {
       ) : (
         <div className="bg-white">
           <div className="container mx-auto px-4 py-16">
+            {/* Display Recommended Properties Section ONLY if user is authenticated AND we have a valid user_id AND there are recommendations */}
+            {isUserAuthenticated && currentUserId !== null && recommendedProperties.length > 0 && (
+              <PropertySection
+                title="Recommended for You"
+                properties={recommendedProperties}
+                viewAllLink={`/user/properties?user_id=${currentUserId}&recommendations=true`}
+                maxItems={3}
+                icon={<Sparkles className="h-6 w-6" />}
+                userWishlist={userWishlist}
+                onWishlistChange={handleWishlistChange}
+              />
+            )}
             <PropertySection
               title="New Listings"
               properties={newListings}
               viewAllLink="/user/properties?sort_by=listed_at&sort_order=desc"
               maxItems={3}
               icon={<span className="text-2xl">🆕</span>}
-              userWishlist={userWishlist} // Pass userWishlist to PropertySection
-              onWishlistChange={handleWishlistChange} // Pass callback
+              userWishlist={userWishlist}
+              onWishlistChange={handleWishlistChange}
             />
             {houseId && (
               <PropertySection
@@ -219,8 +283,8 @@ export default function UserHomePage() {
                 viewAllLink={`/user/properties?category_id=${houseId}`}
                 maxItems={3}
                 icon={<Home className="h-6 w-6" />}
-                userWishlist={userWishlist} // Pass userWishlist
-                onWishlistChange={handleWishlistChange} // Pass callback
+                userWishlist={userWishlist}
+                onWishlistChange={handleWishlistChange}
               />
             )}
             {apartmentId && (
@@ -230,8 +294,8 @@ export default function UserHomePage() {
                 viewAllLink={`/user/properties?category_id=${apartmentId}`}
                 maxItems={3}
                 icon={<Building className="h-6 w-6" />}
-                userWishlist={userWishlist} // Pass userWishlist
-                onWishlistChange={handleWishlistChange} // Pass callback
+                userWishlist={userWishlist}
+                onWishlistChange={handleWishlistChange}
               />
             )}
             {roomId && (
@@ -241,8 +305,8 @@ export default function UserHomePage() {
                 viewAllLink={`/user/properties?category_id=${roomId}`}
                 maxItems={3}
                 icon={<DoorOpen className="h-6 w-6" />}
-                userWishlist={userWishlist} // Pass userWishlist
-                onWishlistChange={handleWishlistChange} // Pass callback
+                userWishlist={userWishlist}
+                onWishlistChange={handleWishlistChange}
               />
             )}
           </div>

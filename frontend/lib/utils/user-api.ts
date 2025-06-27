@@ -45,7 +45,7 @@ export function getAccessToken(): string | null {
 }
 
 export function getRefreshToken(): string | null {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined") {  
     return localStorage.getItem("refreshToken");
   }
   return null;
@@ -187,17 +187,19 @@ export async function fetchUnauthenticated<T>(
  * @returns The secure URL of the uploaded file.
  */
 export async function uploadFileToCloudinary(file: File): Promise<string> {
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY) {
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+  if (!uploadPreset || !cloudName) {
     throw new Error("Cloudinary environment variables are not set.");
   }
 
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", "your_upload_preset"); // <<< IMPORTANT: Replace with your Cloudinary upload preset
-  formData.append("api_key", CLOUDINARY_API_KEY);
+  formData.append("upload_preset", uploadPreset);
 
   const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
     {
       method: "POST",
       body: formData,
@@ -206,14 +208,13 @@ export async function uploadFileToCloudinary(file: File): Promise<string> {
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(
-      errorData.error?.message || `Cloudinary upload failed: ${response.statusText}`
-    );
+    throw new Error(errorData.error?.message || "Cloudinary upload failed");
   }
 
   const data = await response.json();
   return data.secure_url;
 }
+
 
 
 // --- API Functions ---
@@ -267,11 +268,69 @@ export async function loginUser(
 export async function verifyEmail(
   data: VerifyEmailRequest
 ): Promise<TokenResponse> {
-  return fetchUnauthenticated<TokenResponse>(
-    "/users/verify-email",
-    "POST",
-    data
-  );
+  const { email, code } = data;
+
+  console.log("--- verifyEmail function started ---");
+  console.log("Received data:", { email, code });
+
+  // Manually construct the URL with query parameters
+  const url = `${BASE_URL}/users/verify-email?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+  console.log("Constructed URL:", url);
+
+  // Define the fetch options directly
+  const options: RequestInit = {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      // Crucially, we do NOT set 'Content-Type: application/json' here.
+      // The backend expects URL query parameters, not a JSON body.
+    },
+    body: '', // An empty body is typically sent for POST with query parameters
+  };
+  console.log("Fetch options:", options);
+
+  try {
+    console.log("Making fetch request...");
+    const response = await fetch(url, options);
+    console.log("Fetch response received. Status:", response.status, response.statusText);
+    console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      console.log("Response was NOT OK. Status:", response.status);
+      const errorText = await response.text(); // Get raw text first
+      console.log("Raw error response body:", errorText);
+      let errorData: any = {};
+      try {
+        errorData = JSON.parse(errorText); // Try parsing as JSON
+        console.log("Parsed error data:", errorData);
+      } catch (jsonError) {
+        console.error("Failed to parse error response as JSON:", jsonError);
+        errorData = { detail: errorText }; // Fallback to raw text if not JSON
+      }
+
+      const errorMessage =
+        errorData.detail ||
+        errorData.message ||
+        `API error: ${response.status} - ${response.statusText}`;
+      console.error("Throwing error:", errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    console.log("Response was OK. Attempting to parse JSON...");
+    const responseData = await response.json();
+    console.log("Successfully parsed JSON response:", responseData);
+    return responseData as TokenResponse;
+
+  } catch (error: any) {
+    console.error("Error caught in verifyEmail function:", error);
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error("Possible network error or CORS issue.");
+      throw new Error("Network error or server unreachable. Please check your connection and try again.");
+    }
+    throw error;
+  } finally {
+    console.log("--- verifyEmail function finished ---");
+  }
 }
 
 export async function requestPasswordReset(

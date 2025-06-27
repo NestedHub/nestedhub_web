@@ -11,21 +11,24 @@ import {
   removePropertyFromWishlist,
 } from "@/lib/utils/wishlist-api";
 
+// NEW: Define the explicit type for the 'property' prop that PropertyCard expects
+export type PropertyCardDisplayData = {
+  id: string;
+  title: string;
+  category: string;
+  price: string; // Formatted string, e.g., "$1,200.00"
+  location: string; // Combined string, e.g., "Sangkat Boeung Kak Pir, Khan Tuol Kouk"
+  bedrooms: number;
+  bathrooms: number;
+  image: string; // URL for the main image
+  rating?: number; // Optional rating, if available (your API example shows null, so make it optional here)
+};
+
 interface PropertyCardProps {
-  property: {
-    id: string;
-    title: string;
-    category: string;
-    price: string;
-    location: string;
-    bedrooms: number;
-    bathrooms: number;
-    image: string;
-    rating?: number;
-  };
+  property: PropertyCardDisplayData; // Use the new type here
   initialIsWishlisted?: boolean;
   onWishlistChange?: (propertyId: string, isWishlisted: boolean) => void;
-  canOnlyRemove?: boolean; // This prop is defined here
+  canOnlyRemove?: boolean;
   isUserAuthenticated: boolean;
   isUserLoading: boolean;
   onSelect?: (propertyId: number) => void;

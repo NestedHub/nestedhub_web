@@ -15,6 +15,8 @@ from enums import PropertyStatusEnum, ReviewStatusEnum
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func
 import logging
+# NEW: Import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
 
 # Setup logging at the top
@@ -22,6 +24,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Hybrid Recommendation Server")
+
+# NEW: Configure CORS middleware
+origins = [
+    "http://localhost",
+    "http://localhost:3000",  # Your Next.js frontend
+    # You might also want to add your production frontend URL here later
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all standard methods (GET, POST, PUT, DELETE, OPTIONS)
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Database connection
 DATABASE_URL = (

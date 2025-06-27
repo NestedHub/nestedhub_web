@@ -57,6 +57,7 @@ export interface ApiProperty { // Renamed from ApiResponseProperty for brevity, 
   listed_at: string;
   user_id: number; // ID of the property owner
   category_name: string;
+  rating?: number | null;
   pricing: {
     rent_price: number;
     deposit?: number;
