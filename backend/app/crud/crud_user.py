@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import Session, select
 from pydantic import EmailStr, ValidationError, validate_email
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, desc
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
 from app.models.models import User, UserRole, VerificationCodeDB, RevokedToken, OAuthProvider, Feature, PropertyCategory
@@ -383,57 +383,98 @@ def authenticate_google_user(
     return response
 
 
+def validate_email(email: str):
+    # This is a basic example; Pydantic's EmailStr does more.
+    if "@" not in email:
+        raise ValidationError("Invalid email format")
+
+
+# --- Original function modified for print() ---
 def verify_email_code(*, session: Session, email: str, code: str) -> Dict[str, str]:
     """
     Verify an email verification code and return tokens.
     """
-    logger.info(f"Starting verification for email: {email}, code: {code}")
+    print(f"DEBUG: Starting verification for email: {email}, code: {code}")
 
     try:
         validate_email(email)
     except ValidationError:
-        logger.warning(f"Invalid email format: {email}")
+        print(f"WARNING: Invalid email format: {email}")
         raise HTTPException(status_code=400, detail="Invalid email format")
 
     if not code or len(code) != 6 or not code.isalnum():
-        logger.warning(f"Invalid code format: {code}")
+        print(f"WARNING: Invalid code format: {code}")
         raise HTTPException(
             status_code=400, detail="Invalid verification code format")
 
     try:
-        verification = session.exec(
-            select(VerificationCodeDB).where(VerificationCodeDB.email == email)
-        ).first()
-        logger.info(f"Verification record: {verification}")
+        # --- THIS IS THE CRUCIAL CHANGE ---
+        # Uncomment your actual SQLAlchemy/SQLModel query
 
-        if not verification or datetime.now(timezone.utc) > verification.expires_at.replace(tzinfo=timezone.utc) or verification.code != code:
-            if verification and datetime.now(timezone.utc) > verification.expires_at:
-                logger.info(f"Verification code expired for: {email}")
-                session.delete(verification)
-                session.commit()
-            logger.warning(f"Verification failed for {email}")
+        verification = session.exec(
+            select(VerificationCodeDB)
+            .where(VerificationCodeDB.email == email)
+            # assuming you have a created_at timestamp
+            .order_by(desc(VerificationCodeDB.created_at))
+        ).first()
+
+        print(
+            f"DEBUG: Fetched Verification record: {verification.email if verification else 'None'}")
+        if verification:
+            print(
+                f"DEBUG: Verification code from DB: {verification.code}, Expires: {verification.expires_at}")
+            print(f"DEBUG: Current UTC time: {datetime.now(timezone.utc)}")
+
+            # Ensure expires_at always has tzinfo for comparison
+            expires_at_utc = verification.expires_at
+            if expires_at_utc.tzinfo is None:
+                # If your DB stores naive datetimes, assume UTC or your configured backend timezone
+                print("WARNING: expires_at is naive, assuming UTC for comparison.")
+                expires_at_utc = expires_at_utc.replace(tzinfo=timezone.utc)
+
+            is_expired = datetime.now(timezone.utc) > expires_at_utc
+            is_code_match = verification.code == code
+
+            print(f"DEBUG: Is code expired? {is_expired}")
+            print(f"DEBUG: Does provided code match DB code? {is_code_match}")
+
+        if not verification or \
+           (verification and is_expired) or \
+           (verification and not is_code_match):  # Changed this for clarity based on previous line
+
+            print(f"DEBUG: Inside the verification failure condition.")
+            if verification and is_expired:
+                print(
+                    f"INFO: Verification code expired for: {email}. Deleting it.")
+                # session.delete(verification) # Uncomment for actual DB
+                # session.commit() # Uncomment for actual DB
+            print(
+                f"WARNING: Verification failed for {email}: Invalid, expired, or used code.")
             raise HTTPException(
                 status_code=401, detail="Invalid or expired verification code")
 
         user = get_user_by_email(session=session, email=email)
-        logger.info(f"User fetched: {user}")
+        print(f"DEBUG: User fetched: {user.email if user else 'None'}")
 
         if not user:
-            logger.warning(f"No user found for email: {email}")
+            print(
+                f"WARNING: No user found for email: {email} after code verification.")
             raise HTTPException(
                 status_code=401, detail="Invalid or expired verification code")
 
         if not user.is_active:
-            logger.warning(f"User is not active: {email}")
+            print(f"WARNING: User is not active: {email}")
             raise HTTPException(
                 status_code=403, detail="Account is deactivated")
 
+        # Uncomment these lines to actually update the DB and delete the code
         user.is_email_verified = True
         session.add(user)
         session.delete(verification)
         session.commit()
+        print("DEBUG: User email verification status updated and code marked as used (simulated).")
 
-        logger.info(f"User verified and tokens being generated for: {email}")
+        print(f"DEBUG: User verified and tokens being generated for: {email}")
 
         access_token = create_access_token(
             user_id=user.user_id, email=user.email, role=user.role)
@@ -447,13 +488,28 @@ def verify_email_code(*, session: Session, email: str, code: str) -> Dict[str, s
 
         if not user.is_approved:
             response["message"] = "Email verified, but account is awaiting approval."
+            print(f"INFO: User {email} email verified, but awaiting approval.")
 
         return response
 
     except HTTPException:
+        # Re-raise HTTPExceptions as they are already handled
         raise
     except Exception as e:
-        logger.exception("Unexpected error during email verification")
+        print(
+            f"ERROR: An unexpected error occurred during email verification: {e}")
+        raise HTTPException(
+            status_code=500, detail="Internal server error during verification.")
+
+    except HTTPException as e:
+        # FastAPI will catch this and send the appropriate HTTP response
+        print(f"ERROR: Caught HTTPException: {e.status_code} - {e.detail}")
+        raise  # Re-raise to let FastAPI handle it
+    except Exception as e:
+        # This will catch any other unexpected errors
+        print(
+            f"CRITICAL: Unexpected error during email verification for {email}: {e}")
+        # session.rollback() # Uncomment for actual DB
         raise HTTPException(status_code=500, detail="Database error occurred")
 
 
@@ -516,20 +572,23 @@ def reset_password(
     try:
         validate_email(email)
     except ValidationError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input provided.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input provided.")
 
     if not code or len(code) != 6 or not code.isalnum():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input provided.")
 
     if not new_password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input provided.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input provided.")
 
     try:
         user = get_user_by_email(session=session, email=email)
         if not user:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or verification code.")
-        
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Invalid email or verification code.")
+
         if user.oauth_provider != OAuthProvider.none:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -543,26 +602,30 @@ def reset_password(
         if not verification:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or verification code.")
-        
+
         current_utc_time = datetime.now(timezone.utc)
-        
+
         expires_at_aware = verification.expires_at.replace(tzinfo=timezone.utc)
-        
+
         if current_utc_time > expires_at_aware:
             try:
                 session.delete(verification)
                 session.commit()
             except SQLAlchemyError:
                 session.rollback()
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                    detail="An internal server error occurred.")
             except Exception:
                 session.rollback()
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
-            
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or verification code.")
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                    detail="An internal server error occurred.")
+
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Invalid email or verification code.")
 
         if verification.code != code:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or verification code.")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Invalid email or verification code.")
 
         try:
             user.hashed_password = get_password_hash(new_password)
@@ -572,17 +635,20 @@ def reset_password(
             return True
         except SQLAlchemyError:
             session.rollback()
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail="An internal server error occurred.")
         except Exception:
             session.rollback()
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail="An internal server error occurred.")
 
     except HTTPException:
         raise
-    except Exception: # Removed 'as e' as you don't need 'e' for generic 500
+    except Exception:  # Removed 'as e' as you don't need 'e' for generic 500
         if session.is_active:
-             session.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
+            session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="An internal server error occurred.")
 
 
 def revoke_token(*, session: Session, token: str, expires_at: datetime) -> None:
@@ -696,6 +762,7 @@ def update_user_in_db(
     except Exception:
         raise HTTPException(status_code=500, detail="Database error occurred")
 
+
 def search_users(
     session: Session,
     name: Optional[str] = None,
@@ -711,7 +778,7 @@ def search_users(
     Search users by name, email, phone, role, or status with pagination.
     """
     query = select(User)
-    
+
     # Combined search for name and email
     if name:
         search_term = f"%{name}%"
@@ -721,7 +788,7 @@ def search_users(
                 User.email.ilike(search_term)
             )
         )
-    
+
     if phone:
         query = query.where(User.phone.ilike(f"%{phone}%"))
     if role:
@@ -733,11 +800,13 @@ def search_users(
 
     return session.exec(query.offset(skip).limit(limit)).all()
 
+
 def list_users(session: Session, skip: int = 0, limit: int = 10) -> List[User]:
     """
     Retrieve a paginated list of all users.
     """
     return session.exec(select(User).offset(skip).limit(limit)).all()
+
 
 def delete_user(session: Session, user_id: int, hard_delete: bool = False) -> bool:
     """
@@ -747,15 +816,16 @@ def delete_user(session: Session, user_id: int, hard_delete: bool = False) -> bo
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     if hard_delete:
         session.delete(user)
     else:
         user.is_active = False
         session.add(user)
-    
+
     session.commit()
     return True
+
 
 def get_user_count(
     session: Session,
@@ -770,7 +840,7 @@ def get_user_count(
     Get total count of users with filters.
     """
     query = select(func.count()).select_from(User)
-    
+
     # Combined search for name and email
     if name:
         search_term = f"%{name}%"

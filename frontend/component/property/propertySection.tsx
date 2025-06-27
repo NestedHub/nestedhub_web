@@ -2,29 +2,20 @@
 import Link from "next/link"
 import { ChevronRight } from "lucide-react"
 import PropertyCard from "@/component/property/propertyCard"
-import { WishListResponse } from "@/lib/types"; // Import WishListResponse type
+import { WishListResponse } from "@/lib/types";
+import { PropertyCardDisplayData } from "@/component/property/propertyCard"; // Import the new type
 
 interface PropertySectionProps {
   title: string
-  properties: {
-    id: string
-    title: string
-    category: string
-    price: string
-    location: string
-    bedrooms: number
-    bathrooms: number
-    image: string
-  }[]
+  properties: PropertyCardDisplayData[];
   viewAllLink?: string
   maxItems?: number
   icon?: React.ReactNode;
-  // NEW: Props to pass down to PropertyCard
   userWishlist: WishListResponse[];
   onWishlistChange: (propertyId: string, isWishlisted: boolean) => void;
 }
 
-export default function PropertySection({
+export default function PropertySection({ // <--- ONLY ONE export default here
   title,
   properties,
   viewAllLink,
@@ -50,16 +41,6 @@ export default function PropertySection({
             <p className="text-gray-600 mt-1">Discover the best {title.toLowerCase()} available</p>
           </div>
         </div>
-
-        {viewAllLink && hasMoreProperties && (
-          <Link
-            href={viewAllLink}
-            className="group flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5"
-          >
-            <span>View All ({properties.length})</span>
-            <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
-          </Link>
-        )}
       </div>
 
       {displayProperties.length > 0 ? (

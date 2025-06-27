@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link"; // Use Link for internal navigation
 
 import { uploadFileToCloudinary } from "@/lib/utils/user-api";
-import { UserCreate } from "@/lib/user"; // UserRole is inferred here as 'customer'
+import { UserCreate, UserRole } from "@/lib/user"; // Import UserRole
 import { useAuthContext } from "@/lib/context/AuthContext";
 
-// Inline SVG Icons for Lucide-React replacements (assuming you still need these for the styling)
+// Inline SVG Icons (assuming you still need these for the styling)
 const EyeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
@@ -41,26 +41,29 @@ const HomeIcon = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
-type CustomerRegistrationFormData = Omit<UserCreate, 'id_card_url' | 'profile_picture_url' | 'role'> & {
+
+type PropertyOwnerRegistrationFormData = Omit<UserCreate, 'id_card_url' | 'profile_picture_url' | 'role'> & {
   profilePictureFile: File | null;
-  // idCardFile is specifically NOT included here as it's for property owners only
+  idCardFile: File | null; // Required for property owners
 };
 
-export default function CustomerRegisterPage() {
+export default function PropertyOwnerRegisterPage() {
   const router = useRouter();
   const { register } = useAuthContext();
 
-  const [formData, setFormData] = useState<CustomerRegistrationFormData>({
+  const [formData, setFormData] = useState<PropertyOwnerRegistrationFormData>({
     name: "",
     email: "",
     phone: "",
     password: "",
     profilePictureFile: null,
+    idCardFile: null,
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -86,32 +89,43 @@ export default function CustomerRegisterPage() {
 
     try {
       let profilePictureUrl = "";
+      let idCardUrl = "";
 
       if (formData.profilePictureFile) {
         setMessage("Uploading profile picture...");
         profilePictureUrl = await uploadFileToCloudinary(formData.profilePictureFile);
       }
 
+      // Property owner specific: ID Card upload
+      if (!formData.idCardFile) {
+        setError("Property owners must upload an ID card.");
+        setLoading(false);
+        return;
+      }
+      setMessage("Uploading ID card...");
+      idCardUrl = await uploadFileToCloudinary(formData.idCardFile);
+
+
       const userCreateData: UserCreate = {
         name: formData.name,
         email: formData.email,
-        phone: formData.phone || undefined, // Make phone optional
-        role: 'customer', // Hardcode role for this page
+        phone: formData.phone || undefined,
+        role: 'property_owner' as UserRole, // Hardcode role for this page
         password: formData.password,
         profile_picture_url: profilePictureUrl || undefined,
-        // id_card_url is intentionally omitted for customers
+        id_card_url: idCardUrl, // ID card is now guaranteed to be a string
       };
 
-      setMessage(`Registering customer account...`); // Hardcoded role for message
+      setMessage("Registering property owner account...");
       const response = await register(userCreateData);
 
-      // Log the response directly, or update this to match the actual response type
-      console.log("Registration successful!", response);
-      // Redirect to a dedicated email verification page, passing the email
+      // Use the actual response structure
+      setMessage(`Registration successful for ${response.email}! Please check your email for a verification code.`);
+      // Redirect to a dedicated email verification page
       router.push(`/verify-email?email=${formData.email}`);
 
     } catch (err: any) {
-      console.error("Registration error:", err);
+      console.error("Property Owner Registration error:", err);
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
@@ -135,10 +149,10 @@ export default function CustomerRegisterPage() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col justify-center">
           <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight mb-8">
-            Let us help you find the perfect property today.
+            Register your property with ease.
           </h1>
           <p className="text-white text-lg opacity-90">
-            Connecting you to your dream home with ease and confidence.
+            List your properties and connect with potential tenants effortlessly.
           </p>
         </div>
 
@@ -159,7 +173,7 @@ export default function CustomerRegisterPage() {
         <div className="w-full max-w-md space-y-8">
           {/* Header */}
           <div className="text-center space-y-3">
-            <h2 className="text-3xl font-extrabold text-gray-900">Create Your Customer Account</h2>
+            <h2 className="text-3xl font-extrabold text-gray-900">Create Your Property Owner Account</h2>
             <p className="text-gray-600 text-base">
               By continuing, you agree to NestHub's <a href="#" className="text-[#20511e] hover:underline font-medium">Terms of Use</a>.
             </p>
@@ -258,6 +272,24 @@ export default function CustomerRegisterPage() {
               )}
             </div>
 
+            {/* ID Card Upload (REQUIRED for property owners) */}
+            <div>
+              <label htmlFor="idCardFile" className="block text-sm font-medium text-gray-700 mb-2">ID Card (Required)</label>
+              <input
+                id="idCardFile"
+                name="idCardFile"
+                type="file"
+                accept="image/*"
+                required // This is now required
+                className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 focus:outline-none"
+                onChange={handleFileChange}
+                disabled={loading}
+              />
+              {formData.idCardFile && (
+                <p className="mt-2 text-xs text-gray-500">Selected: {formData.idCardFile.name}</p>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -292,7 +324,7 @@ export default function CustomerRegisterPage() {
                   Processing...
                 </>
               ) : (
-                "Create Account"
+                "Register Property Owner Account"
               )}
             </button>
           </form>
@@ -339,11 +371,6 @@ export default function CustomerRegisterPage() {
                 Login
               </Link>
             </p>
-            <div className="pt-2">
-              <Link href="/register/property-owner" className="text-gray-600 hover:text-[#20511e] font-medium">
-                Register as a Property Owner <span aria-hidden="true">&rarr;</span>
-              </Link>
-            </div>
           </div>
         </div>
       </div>
